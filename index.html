@@ -11,8 +11,10 @@
 
 
         <a-assets>
-            <!-- <a-asset-item id="friend-m" src="cm9dzteazyf4-vase\vase\vase.mtl"></a-asset-item> -->
-            <a-asset-item id="friend-o" src="https://graphics.stanford.edu/courses/cs148-10-summer/as3/code/as3/teapot.obj"></a-asset-item>
+            <a-asset-item id="friend-m" src="cm9dzteazyf4-vase\vase\vase.mtl"></a-asset-item>
+            <a-asset-item id="friend-obj" src="cm9dzteazyf4-vase\vase\vase.obj"></a-asset-item>
+
+            <!-- <a-asset-item id="friend-o" src="https://graphics.stanford.edu/courses/cs148-10-summer/as3/code/as3/teapot.obj"></a-asset-item> -->
         </a-assets>
     
 
@@ -23,7 +25,7 @@
         <a-entity id="leftHand" hand-controls="hand: left" smooth-locomotion="active: true"></a-entity>
         <a-entity id="rightHand" hand-controls="hand: right"></a-entity>
       </a-entity>
-      <a-entity obj-model="obj: #friend-o"
+      <a-entity obj-model="obj: #friend-o; mtl: #catapult-m"
         position = "0 2 3"
         scale="0.1 0.1 0.1">
       </a-entity>
