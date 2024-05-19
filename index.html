@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="controller.js"></script>
+  </head>
+
+
+  <body>
+    <a-scene>
+
+
+        <a-assets>
+            <!-- <a-asset-item id="friend-m" src="cm9dzteazyf4-vase\vase\vase.mtl"></a-asset-item> -->
+            <a-asset-item id="friend-o" src="https://graphics.stanford.edu/courses/cs148-10-summer/as3/code/as3/teapot.obj"></a-asset-item>
+        </a-assets>
+    
+
+      <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
+      <a-sky color="blue"></a-sky>
+      <a-entity id="player">
+        <a-camera id="head" wasd-controls look-controls></a-camera>
+        <a-entity id="leftHand" hand-controls="hand: left" smooth-locomotion="active: true"></a-entity>
+        <a-entity id="rightHand" hand-controls="hand: right"></a-entity>
+      </a-entity>
+      <a-entity obj-model="obj: #friend-o"
+        position = "0 2 3"
+        scale="0.1 0.1 0.1">
+      </a-entity>
+
+
+
+
+    </a-scene>
+  </body>
+</html>
