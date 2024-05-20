@@ -3,19 +3,13 @@
   <head>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="controller.js"></script>
+    <script src="getmodel.js"></script>
   </head>
 
 
   <body>
     <a-scene>
 
-
-        <a-assets>
-            <a-asset-item id="friend-m" src="cm9dzteazyf4-vase\vase\vase.mtl"></a-asset-item>
-            <a-asset-item id="friend-obj" src="cm9dzteazyf4-vase\vase\vase.obj"></a-asset-item>
-
-            <!-- <a-asset-item id="friend-o" src="https://graphics.stanford.edu/courses/cs148-10-summer/as3/code/as3/teapot.obj"></a-asset-item> -->
-        </a-assets>
     
 
       <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
@@ -25,7 +19,7 @@
         <a-entity id="leftHand" hand-controls="hand: left" smooth-locomotion="active: true"></a-entity>
         <a-entity id="rightHand" hand-controls="hand: right"></a-entity>
       </a-entity>
-      <a-entity obj-model="obj: #friend-o; mtl: #catapult-m"
+      <a-entity id="friend-obj"
         position = "0 2 3"
         scale="0.1 0.1 0.1">
       </a-entity>
@@ -34,5 +28,30 @@
 
 
     </a-scene>
+    <script>
+      // Function to fetch the model file from the server and load it into an a-entity
+      function loadModel() {
+          const url = 'http://localhost:5000/model/example_mesh_0.obj'; // URL of the model
+
+          fetch(url)
+              .then(response => {
+                  if (!response.ok) {
+                      throw new Error('Network response was not ok ' + response.statusText);
+                  }
+                  return response.blob(); // Get the response as a Blob
+              })
+              .then(blob => {
+                  const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
+                  const entity = document.getElementById('friend-obj'); // Get the a-entity
+                  entity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
+              })
+              .catch(error => {
+                  console.error('There was a problem with the fetch operation:', error);
+              });
+      }
+
+      // Call the function to load the model
+      loadModel();
+    </script>
   </body>
 </html>
