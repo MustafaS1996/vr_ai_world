@@ -30,10 +30,10 @@
 
       <a-entity cursor="rayOrigin: mouse"></a-entity>
 
-      <a-assets>
+      <!-- <a-assets>
           <a-asset-item id="friend-ply" src="example_mesh_0.ply"></a-asset-item>
           <a-asset-item id="friend-obj" src="example_mesh_0.obj"></a-asset-item>
-      </a-assets>
+      </a-assets> -->
 
       <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
       <a-sky color="blue"></a-sky>
@@ -44,7 +44,7 @@
         grabber></a-entity>
       </a-entity>
 
-      <a-entity id="friend-obj" position="0 2 3" scale="0.1 0.1 0.1"></a-entity>
+      <a-entity id="friend-obj" position="0 2 3" rotation="-90 0 90" scale="1 1 1"></a-entity>
     </a-scene>
     
     <script>
@@ -104,6 +104,7 @@
             // Stop speech recognition
             recognition.stop();
             console.log('Speech recognition stopped');
+            loadModel(recognizedText)
           }
           // Update button state
           isRecording = false;
@@ -112,11 +113,10 @@
           button.setAttribute('text', 'value', 'Start Speech Input');
         }
       });
-    </script>
-    <script>
+
         // Function to fetch the model description from the server and log it to the console
-        function loadModel() {
-            const description = 'a chocolate donut';
+        function loadModel(description) {
+            // const description = 'a chocolate donut';
             const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`; // URL of the model with query parameter
 
             fetch(url)
@@ -137,7 +137,7 @@
         }
 
         // Call the function to load the model description
-        loadModel();
+        
     </script>
   </body>
 </html>
