@@ -44,11 +44,7 @@
         grabber></a-entity>
       </a-entity>
 
-      <a-entity obj-model="obj: #friend-obj; material: #friend-ply"
-        position = "1 1 1"
-        scale="0.5 0.5 0.5"
-        rotation="90 200 180"
-      ></a-entity>
+      <a-entity id="friend-obj" position="0 2 3" scale="0.1 0.1 0.1"></a-entity>
     </a-scene>
     
     <script>
@@ -116,6 +112,32 @@
           button.setAttribute('text', 'value', 'Start Speech Input');
         }
       });
-    </script> 
+    </script>
+    <script>
+        // Function to fetch the model description from the server and log it to the console
+        function loadModel() {
+            const description = 'a chocolate donut';
+            const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`; // URL of the model with query parameter
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.blob(); // Get the response as text
+                })
+                .then(blob => {
+                  const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
+                  const entity = document.getElementById('friend-obj'); // Get the a-entity
+                  entity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
+                })
+                .catch(error => {
+                    console.error('There was a problem with the fetch operation:', error);
+                });
+        }
+
+        // Call the function to load the model description
+        loadModel();
+    </script>
   </body>
 </html>
