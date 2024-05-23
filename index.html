@@ -4,6 +4,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system/dist/aframe-physics-system.min.js"></script>
+    <script type="module">
+      import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+      window.pipeline = pipeline
+    </script>
+    
   </head>
   <body>
     <a-scene>
@@ -21,11 +26,11 @@
       <a-plane
         id="startButton"
         color="cyan"
-        width="1"
-        height="0.5"
-        position="1.6 1.5 -3"
+        width="0.2"
+        height="0.1"
+        position="0 1 0"
         text="value: Start Speech Input"
-        cursor-listener>
+        cursor-listener obb-collider>
       </a-plane>
 
       <a-entity cursor="rayOrigin: mouse"></a-entity>
@@ -39,80 +44,90 @@
       <a-sky color="blue"></a-sky>
       <a-entity id="player">
         <a-camera id="head" wasd-controls look-controls-enabled="true"  keyboard-controls="mode: fps"></a-camera>
-        <a-entity id="leftHand" hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc" smooth-locomotion="active: true"></a-entity>
-        <a-entity id="rightHand" hand-controls="hand: right; handModelStyle: lowPoly; color: #ffcccc" raycaster="lineColor: #fff; lineOpacity: 0.7; far: 10"
-        grabber></a-entity>
+        <!-- <a-entity id="leftHand" hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc" smooth-locomotion="active: true"></a-entity>
+        <a-entity cursor id="rightHand" hand-controls="hand: right; handModelStyle: lowPoly; color: #ffcccc" raycaster="lineColor: #fff; lineOpacity: 0.7; far: 10"
+        grabber></a-entity> -->
+        <a-entity id="leftHand" hand-tracking-controls="hand: left;"></a-entity>
+        <a-entity cursor id="rightHand" hand-tracking-controls="hand: right;"></a-entity>
       </a-entity>
 
       <a-entity id="friend-obj" position="0 2 3" rotation="-90 0 90" scale="1 1 1"></a-entity>
     </a-scene>
     
     <script>
-      var isRecording = false; // Variable to track if speech recognition is active
-      var recognizedText = ''; // Variable to store recognized speech
-      var recognition = null; // SpeechRecognition object
+let isRecording = false; // Variable to track if speech recognition is active
+let recognizedText = ''; // Variable to store recognized speech
+let mediaRecorder = null; // MediaRecorder object
+let audioChunks = []; // Array to store audio chunks
 
-      document.getElementById('startButton').addEventListener('click', function () {
-        var textArea = document.getElementById('textArea');
-        textArea.setAttribute('visible', true); // Always show text area when button is clicked
+document.getElementById('startButton').addEventListener('click', async function () {
+  const textArea = document.getElementById('textArea');
+  textArea.setAttribute('visible', true); // Always show text area when button is clicked
 
-        if (!isRecording) { // Start recording
-          // Check if SpeechRecognition is supported
-          if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-            // Request permission to use microphone
-            navigator.mediaDevices.getUserMedia({ audio: true })
-              .then(function (stream) {
-                // Set up speech recognition
-                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-                recognition.lang = 'en-US'; // Adjust language setting if needed
-                recognition.continuous = true;
+  if (!isRecording) { // Start recording
+    // Request permission to use the microphone
+    try {
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-                // Handle recognition events
-                recognition.onstart = function () {
-                  console.log('Speech recognition started');
-                };
+      // Initialize MediaRecorder
+      mediaRecorder = new MediaRecorder(audioStream);
+      
+      // Clear any previous audio chunks
+      audioChunks = [];
+      
+      // Handle data available event to store audio chunks
+      mediaRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
 
-                recognition.onresult = function (event) {
-                  var transcript = event.results[event.results.length - 1][0].transcript;
-                  console.log('Recognized speech:', transcript);
-                  recognizedText = transcript; // Save recognized speech to variable
-                  // Update text entity with recognized speech
-                  textArea.setAttribute('text', 'value', 'Build me a: ' + transcript);
-                };
+      // Start recording
+      mediaRecorder.start();
+      console.log('Recording started');
 
-                recognition.onerror = function (event) {
-                  console.error('Speech recognition error:', event.error);
-                };
+      // Update button state
+      isRecording = true;
+      const button = document.getElementById('startButton');
+      button.setAttribute('color', 'red');
+      button.setAttribute('text', 'value', 'Stop Speech Input');
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+    }
+  } else { // Stop recording
+    mediaRecorder.stop();
 
-                // Start recognition
-                recognition.start();
+    // Handle stop event to process the audio
+    mediaRecorder.onstop = async () => {
+      console.log('Recording stopped, processing...');
 
-                // Update button state
-                isRecording = true;
-                var button = document.getElementById('startButton');
-                button.setAttribute('color', 'red');
-                button.setAttribute('text', 'value', 'Stop Speech Input');
-              })
-              .catch(function (error) {
-                console.error('Error accessing microphone:', error);
-              });
-          } else {
-            console.error('Speech recognition not supported in this browser');
-          }
-        } else { // Stop recording
-          if (recognition) {
-            // Stop speech recognition
-            recognition.stop();
-            console.log('Speech recognition stopped');
-            loadModel(recognizedText)
-          }
-          // Update button state
-          isRecording = false;
-          var button = document.getElementById('startButton');
-          button.setAttribute('color', 'green');
-          button.setAttribute('text', 'value', 'Start Speech Input');
-        }
-      });
+      // Create a Blob from the audio chunks
+      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+
+      // Create a URL for the Blob
+      const url = URL.createObjectURL(audioBlob);
+
+      // Use the new transcriber API
+      const transcriber = await window.pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+      const output = await transcriber(url);
+
+      recognizedText = output.text; // Save recognized speech to variable
+      console.log('Recognized speech:', recognizedText);
+
+      // Update text entity with recognized speech
+      textArea.setAttribute('text', 'value', 'Build me a: ' + recognizedText);
+
+      loadModel(recognizedText)
+
+      // Revoke the Blob URL after processing
+      URL.revokeObjectURL(url);
+    };
+
+    // Update button state
+    isRecording = false;
+    const button = document.getElementById('startButton');
+    button.setAttribute('color', 'green');
+    button.setAttribute('text', 'value', 'Start Speech Input');
+  }
+});
 
         // Function to fetch the model description from the server and log it to the console
         function loadModel(description) {
