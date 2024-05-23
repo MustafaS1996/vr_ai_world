@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system/dist/aframe-physics-system.min.js"></script>
   </head>
   <body>
@@ -38,13 +38,18 @@
       <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
       <a-sky color="blue"></a-sky>
       <a-entity id="player">
-        <a-camera id="head" wasd-controls look-controls-enabled="true"  keyboard-controls="mode: fps"></a-camera>
+        <a-camera id="head" wasd-controls look-controls-enabled  keyboard-controls="mode: fps"></a-camera>
         <a-entity id="leftHand" hand-controls="hand: left" smooth-locomotion="active: true"></a-entity>
         <a-entity id="rightHand" hand-controls="hand: right" raycaster="lineColor: #fff; lineOpacity: 0.7; far: 10"
         grabber></a-entity>
       </a-entity>
 
-      <a-entity id="friend-obj" position="0 2 3" scale="0.1 0.1 0.1"></a-entity>
+      <a-entity obj-model="obj: #friend-obj; material: #friend-ply"
+        position = "1 1 1"
+        scale="0.001 0.001 0.001"
+        rotation="90 200 180"
+        grabbable
+      ></a-entity>
     </a-scene>
     
     <script>
@@ -104,6 +109,7 @@
             // Stop speech recognition
             recognition.stop();
             console.log('Speech recognition stopped');
+            addObjects();
           }
           // Update button state
           isRecording = false;
@@ -112,32 +118,58 @@
           button.setAttribute('text', 'value', 'Start Speech Input');
         }
       });
-    </script>
+    </script> 
+
     <script>
-        // Function to fetch the model description from the server and log it to the console
-        function loadModel() {
-            const description = 'a chocolate donut';
-            const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`; // URL of the model with query parameter
+      // List of objects with their positions
+      var objects = [
+        { position: '0 1 5', scale: '0.001 0.001 0.001', rotation: '0 0 0'},
+        // { position: '0 1 1', scale: '0.00001 0.00001 0.00001', rotation: '0 0 0'},
+        // { position: '1 1 0', scale: '0.5 0.5 0.5', rotation: '90 200 180' },
 
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok ' + response.statusText);
-                    }
-                    return response.blob(); // Get the response as text
-                })
-                .then(blob => {
-                  const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
-                  const entity = document.getElementById('friend-obj'); // Get the a-entity
-                  entity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
-                })
-                .catch(error => {
-                    console.error('There was a problem with the fetch operation:', error);
-                });
-        }
+        // Add more objects as needed
+      ];
 
-        // Call the function to load the model description
-        loadModel();
+      // Function to create and add objects to the scene
+      function addObjects() {
+        var positionChange = positionChange + 1;
+        var scene = document.querySelector('a-scene');
+        objects.forEach(function (object, index) {
+          var entity = document.createElement('a-entity');
+          entity.setAttribute('obj-model', 'obj: #friend-obj; material: #friend-ply');
+          entity.setAttribute('position', object.position);
+          entity.setAttribute('scale', object.scale);
+          entity.setAttribute('rotation', object.rotation);
+          entity.setAttribute('grabbable', ''); // Make objects grabbable
+          scene.appendChild(entity);
+        });
+      }
+
+      // Call the function to add objects when the scene loads
+      document.querySelector('a-scene').addEventListener('loaded', addObjects);
     </script>
+
+<script>
+  AFRAME.registerComponent('grabbable', {
+    init: function () {
+      this.el.addEventListener('mousedown', this.onGrabStart.bind(this));
+      this.el.addEventListener('mouseup', this.onGrabEnd.bind(this));
+    },
+    onGrabStart: function (event) {
+      if (!this.el.body) return;
+      this.grabbed = true;
+      this.constraint = new window.CANNON.LockConstraint(
+        this.el.body,
+        event.detail.cursorEl.components.raycaster.getRaycaster().ray.direction.scale(-0.1)
+      );
+      this.el.sceneEl.systems.physics.driver.world.addConstraint(this.constraint);
+    },
+    onGrabEnd: function () {
+      if (!this.el.body) return;
+      this.grabbed = false;
+      this.el.sceneEl.systems.physics.driver.world.removeConstraint(this.constraint);
+    }
+  });
+</script>
   </body>
 </html>
