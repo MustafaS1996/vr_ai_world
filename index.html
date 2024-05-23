@@ -26,9 +26,9 @@
       <a-plane
         id="startButton"
         color="cyan"
-        width="0.2"
-        height="0.1"
-        position="0 1 0"
+        width="1"
+        height="0.5"
+        position="1.6 1.5 -3"
         text="value: Start Speech Input"
         cursor-listener obb-collider>
       </a-plane>
@@ -43,15 +43,15 @@
       <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
       <a-sky color="blue"></a-sky>
       <a-entity id="player">
-        <a-camera id="head" wasd-controls look-controls-enabled="true"  keyboard-controls="mode: fps"></a-camera>
-        <!-- <a-entity id="leftHand" hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc" smooth-locomotion="active: true"></a-entity>
-        <a-entity cursor id="rightHand" hand-controls="hand: right; handModelStyle: lowPoly; color: #ffcccc" raycaster="lineColor: #fff; lineOpacity: 0.7; far: 10"
-        grabber></a-entity> -->
-        <a-entity id="leftHand" hand-tracking-controls="hand: left;"></a-entity>
-        <a-entity cursor id="rightHand" hand-tracking-controls="hand: right;"></a-entity>
+        <a-camera id="head" wasd-controls look-controls-enabled  keyboard-controls="mode: fps"></a-camera>
+        <a-entity id="rightHand" laser-controls="hand: right" raycaster="objects: .clickable">
+        <a-entity cursor="fuse: false; rayOrigin: mouse" raycaster="objects: .clickable" line="color: #FF0000; opacity: 0.75"></a-entity>
+      </a-entity>
+      <a-entity id="leftHand" laser-controls="hand: left" raycaster="objects: .clickable">
+        <a-entity cursor="fuse: false; rayOrigin: mouse" raycaster="objects: .clickable" line="color: #FF0000; opacity: 0.75"></a-entity>
       </a-entity>
 
-      <a-entity id="friend-obj" position="0 2 3" rotation="-90 0 90" scale="1 1 1"></a-entity>
+      <a-entity id="friend-obj" position="0 1 1" rotation="-90 0 90" scale="1 1 1"></a-entity>
     </a-scene>
     
     <script>
@@ -59,6 +59,7 @@ let isRecording = false; // Variable to track if speech recognition is active
 let recognizedText = ''; // Variable to store recognized speech
 let mediaRecorder = null; // MediaRecorder object
 let audioChunks = []; // Array to store audio chunks
+document.getElementById('startButton').classList.add('clickable');
 
 document.getElementById('startButton').addEventListener('click', async function () {
   const textArea = document.getElementById('textArea');
