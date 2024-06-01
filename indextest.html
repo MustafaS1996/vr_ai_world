@@ -48,58 +48,99 @@
       
     </script> -->
 
-    <script>
+    <!-- <script>
       // Wait for the scene to load
       document.addEventListener('DOMContentLoaded', function () {
         const sceneEl = document.querySelector('a-scene');
-        const clickableEls = document.querySelectorAll('.clickable'); // Select all clickable objects
-        let currentDraggedEl = null; // Track the currently dragged element
-    
-        // Function to start dragging
-        function startDrag(evt) {
-          currentDraggedEl = evt.currentTarget; // Set the current element being dragged
-          currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
-        }
-    
-        // Function to do the dragging
-        function doDrag(evt) {
-          if (currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
-            const cursorEl = document.querySelector('a-cursor');
-            const intersection = cursorEl.components.raycaster.getIntersection(currentDraggedEl);
+        const boxEl = document.querySelector('#testbox');
+        let isDragging = false;
+
+        // Set the cursor raycaster to intersect with the box
+        const cursorEl = document.querySelector('a-cursor');
+        cursorEl.setAttribute('raycaster', {
+          objects: '.clickable'
+        });
+
+        // Add event listener for mousedown
+        boxEl.addEventListener('mousedown', function (evt) {
+          isDragging = true;
+        });
+
+        // Add event listener for mousemove
+        sceneEl.addEventListener('mousemove', function (evt) {
+          if (isDragging) {
+            const intersection = cursorEl.components.raycaster.getIntersection(boxEl);
             if (intersection) {
               const point = intersection.point;
-              currentDraggedEl.setAttribute('position', { x: point.x, y: point.y, z: currentDraggedEl.getAttribute('position').z });
+              const boxPosition = boxEl.getAttribute('position');
+              boxEl.setAttribute('position', { x: point.x, y: point.y, z: boxPosition.z });
+            }
+          }
+        });
+
+        // Add event listener for mouseup
+        sceneEl.addEventListener('mouseup', function (evt) {
+          isDragging = false;
+        });
+      });
+    </script> -->
+
+    <script>
+      // Wait for the scene to load
+      document.addEventListener('DOMContentLoaded', function () {
+        const boxEl = document.querySelector('#testbox');
+        const leftController = document.querySelector('#leftController');
+        const rightController = document.querySelector('#rightController');
+        let isDragging = false;
+  
+        // Helper function to start dragging
+        function startDragging(evt) {
+          const intersection = evt.detail.intersection;
+          if (intersection && intersection.object.el === boxEl) {
+            isDragging = true;
+          }
+        }
+  
+        // Helper function to stop dragging
+        function stopDragging() {
+          isDragging = false;
+        }
+  
+        // Helper function to move the box
+        function moveBox(controller) {
+          if (isDragging) {
+            const intersection = controller.components.raycaster.getIntersection(boxEl);
+            if (intersection) {
+              const point = intersection.point;
+              const boxPosition = boxEl.getAttribute('position');
+              boxEl.setAttribute('position', { x: point.x, y: point.y, z: boxPosition.z });
             }
           }
         }
-    
-        // Function to end dragging
-        function endDrag(evt) {
-          if (currentDraggedEl) {
-            currentDraggedEl.classList.remove('dragging'); // Optional: Remove the class if added
-            currentDraggedEl = null; // Clear the currently dragged element
-          }
-        }
-    
-        // Attach event listeners to each clickable element
-        clickableEls.forEach(el => {
-          el.addEventListener('mousedown', startDrag);
+  
+        // Add event listeners for the grab button on both controllers
+        leftController.addEventListener('triggerdown', startDragging);
+        rightController.addEventListener('triggerdown', startDragging);
+        leftController.addEventListener('triggerup', stopDragging);
+        rightController.addEventListener('triggerup', stopDragging);
+  
+        // Update box position based on controller movement
+        leftController.addEventListener('axismove', function () {
+          moveBox(leftController);
         });
-    
-        // Attach moving and up listeners to the scene
-        sceneEl.addEventListener('mousemove', doDrag);
-        sceneEl.addEventListener('mouseup', endDrag);
+        rightController.addEventListener('axismove', function () {
+          moveBox(rightController);
+        });
       });
     </script>
-
-  
+    
     
   </head>
   <body>
 
     <a-scene>
 
-      <a-box id="testbox" position="0 1.5 -2" rotation="0 45 0" color="#4CC3D9"
+      <a-box id="testbox" position="0 1.5 -2" rotation="45 0 45" color="#4CC3D9"
       class="clickable"
       ></a-box>
 
@@ -124,8 +165,7 @@
         cursor-listener obb-collider>
       </a-plane>
 
-      <a-entity cursor="rayOrigin: mouse">
-      </a-entity>
+      <a-entity cursor="rayOrigin: mouse"></a-entity>
 
       <a-assets>
           <a-asset-item id="friend-ply" src="example_mesh_0.ply"></a-asset-item>
@@ -134,9 +174,8 @@
 
       <a-entity id="friend-obj" obj-model="obj: #friend-obj; material: #friend-ply"
         position = "1 1 1"
-        scale="1 1 1"
-        rotation="180 90 0"
-        class="clickable"
+        scale="0.1 0.1 0.1"
+        rotation="90 200 180"
       ></a-entity>
 
 
@@ -144,23 +183,13 @@
       <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
       <a-sky color="blue"></a-sky>
       <a-entity id="player">
-        <a-camera id="head" wasd-controls look-controls-enabled  keyboard-controls="mode: fps">
-          <a-cursor color="#FF0000" raycaster="objects: .clickable"></a-cursor>
-        </a-camera>
+        <a-camera id="head" wasd-controls look-controls-enabled  keyboard-controls="mode: fps"></a-camera>
         <a-entity id="rightHand" laser-controls="hand: right" raycaster="objects: .clickable">
         <a-entity cursor="fuse: false; rayOrigin: mouse" raycaster="objects: .clickable" line="color: #FF0000; opacity: 0.75"></a-entity>
       </a-entity>
       <a-entity id="leftHand" laser-controls="hand: left" raycaster="objects: .clickable">
         <a-entity cursor="fuse: false; rayOrigin: mouse" raycaster="objects: .clickable" line="color: #FF0000; opacity: 0.75"></a-entity>
       </a-entity>
-
-
-
-
-
-
-
-
 
 
 
@@ -271,8 +300,7 @@ document.getElementById('startButton').addEventListener('click', async function 
         
     </script>
 
-
-</body>
+  </body>
 </html>
 
 
