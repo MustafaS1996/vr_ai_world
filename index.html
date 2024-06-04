@@ -167,11 +167,15 @@
                           .then(blob => {
                             const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
                             const sceneEl = document.querySelector('a-scene');
-                            const blasterBox = document.createElement('a-box');
-                            blasterBox.classList.add('clickable');
-                            sceneEl.appendChild(blasterBox);
+                            const blaster = document.createElement('a-entity');
+                            blaster.classList.add('clickable');
+                            // position="0 1 1" rotation="-90 0 90" scale="1 1 1"
+                            blaster.setAttribute('position', `0 1 1`);
+                            blaster.setAttribute('rotation', `-90 0 90`);
+                            blaster.setAttribute('scale', `1 1 1`);
+                            sceneEl.appendChild(blaster);
                             // const entity = document.getElementById('friend-obj'); // Get the a-entity
-                            blasterBox.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
+                            blaster.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
                           })
                           .catch(error => {
                               console.error('There was a problem with the fetch operation:', error);
