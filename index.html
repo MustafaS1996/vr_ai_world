@@ -51,10 +51,10 @@
       cursor-listener
     ></a-entity> -->
 
-        <!-- <a-box id="testbox" position="0 1.5 -2" rotation="0 45 0" color="#4CC3D9"
+        <a-box id="testbox" position="3 3 -2" rotation="0 45 0" color="#4CC3D9"
         class="clickable"
         cursor-listener
-        ></a-box> -->
+        ></a-box>
 
       <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
       <a-sky color="blue"></a-sky>
@@ -166,18 +166,8 @@
                           })
                           .then(blob => {
                             const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
-                            const sceneEl = document.querySelector('a-scene');
-                            const blaster = document.createElement('a-entity');
-                            
-                            // position="0 1 1" rotation="-90 0 90" scale="1 1 1"
-                            blaster.setAttribute('position', `0 1 1`);
-                            blaster.setAttribute('rotation', `-90 0 90`);
-                            blaster.setAttribute('scale', `1 1 1`);
-                            blaster.setAttribute('cursor-listener', "");
-                            sceneEl.appendChild(blaster);
-                            blaster.classList.add('clickable');
-                            // const entity = document.getElementById('friend-obj'); // Get the a-entity
-                            blaster.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
+                            const entity = document.getElementById('friend-obj'); // Get the a-entity
+                            entity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
                           })
                           .catch(error => {
                               console.error('There was a problem with the fetch operation:', error);
@@ -188,7 +178,7 @@
         
     </script>
 
-<script>
+<!-- <script>
   // Wait for the scene to load
   document.addEventListener('DOMContentLoaded', function () {
     const sceneEl = document.querySelector('a-scene');
@@ -260,7 +250,7 @@
     sceneEl.addEventListener('mouseup', endDrag);
   });
 </script>
-
+ -->
 
 
 
@@ -276,21 +266,34 @@
     let textBox = document.createElement('a-box');
 
     
-
-    // Function to start dragging
-    function startDrag(evt) {
-      currentDraggedEl =  evt.currentTarget; // Set the current element being dragged
-      if (currentDraggedEl) {
-        currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
-        createBox(event, `started`)
-
+      // Function to handle raycaster intersection start
+      function handleIntersectionStart(evt) {
+        intersectedEl = evt.currentTarget; // Set the current intersected element
+        createBox(evt, `intersect started ` + intersectedEl.getAttribute('id'));
       }
-    }
+  
+      // Function to handle raycaster intersection end
+      function handleIntersectionEnd(evt) {
+        createBox(evt, `intersect ended ` + intersectedEl.getAttribute('id'));
+        intersectedEl = null; // Clear the intersected element
+      }
+
+        // Function to start dragging
+        function startDrag(evt) {
+        if (intersectedEl) {
+          isTriggerPressed = true;
+          currentDraggedEl = intersectedEl; // Set the current element being dragged
+          if (currentDraggedEl) {
+            currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
+            createBox(evt, `started dragging ` + isTriggerPressed);
+          }
+        }
+      }
 
     // Function to do the dragging
     function doDrag(evt) {
-
-      if (currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
+      createBox(evt, `lets dragging ` + isTriggerPressed + currentDraggedEl.getAttribute('id'));
+      if (isTriggerPressed && currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
         const controllerEl = evt.target; // The controller entity that triggered the event
         const intersection = controllerEl.components.raycaster.getIntersection(currentDraggedEl); // Get the intersection point        
         createBox(event, `dragging inside ` + currentDraggedEl.getAttribute('id'))
@@ -306,23 +309,24 @@
 
     // Function to end dragging
     function endDrag(evt) {
-
-      if (currentDraggedEl) {
-        currentDraggedEl.classList.remove('dragging'); // Optional: Remove the class if added
-        currentDraggedEl = null; // Clear the currently dragged element
-        createBox(event, `drag off `)
-
+        isTriggerPressed = false;
+        if (currentDraggedEl) {
+          currentDraggedEl.classList.remove('dragging'); // Optional: Remove the class if added
+          currentDraggedEl = null; // Clear the currently dragged element
+          createBox(event, `drag off `)
+  
+        }
       }
-    }
 
     
 
     
 
-    // Attach event listeners to each clickable element
-    clickableEls.forEach(el => {
-      el.addEventListener('raycaster-intersected', startDrag);
-    });
+      // Attach event listeners to each clickable element
+      clickableEls.forEach(el => {
+        el.addEventListener('raycaster-intersected', handleIntersectionStart);
+        el.addEventListener('raycaster-intersected-cleared', handleIntersectionEnd);
+      });
 
     // Attach drag and drop event listeners to the VR controllers
     const rightHand = document.querySelector('#rightHand');
