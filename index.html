@@ -60,7 +60,7 @@
       <a-sky color="blue"></a-sky>
       <a-entity id="player">
         <a-camera id="head" wasd-controls look-controls-enabled  keyboard-controls="mode: fps">
-          <a-cursor color="#FF0000" raycaster="objects: .clickable"></a-cursor>
+          <!-- <a-cursor color="#FF0000" raycaster="objects: .clickable"></a-cursor> -->
         </a-camera>
         <a-entity id="rightHand" laser-controls="hand: right" raycaster="objects: .clickable">
         <!-- <a-entity cursor="fuse: false; rayOrigin: mouse" raycaster="objects: .clickable" line="color: #FF0000; opacity: 0.75"></a-entity> -->
@@ -168,12 +168,14 @@
                             const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
                             const sceneEl = document.querySelector('a-scene');
                             const blaster = document.createElement('a-entity');
-                            blaster.classList.add('clickable');
+                            
                             // position="0 1 1" rotation="-90 0 90" scale="1 1 1"
                             blaster.setAttribute('position', `0 1 1`);
                             blaster.setAttribute('rotation', `-90 0 90`);
                             blaster.setAttribute('scale', `1 1 1`);
+                            blaster.setAttribute('cursor-listener', "");
                             sceneEl.appendChild(blaster);
+                            blaster.classList.add('clickable');
                             // const entity = document.getElementById('friend-obj'); // Get the a-entity
                             blaster.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
                           })
