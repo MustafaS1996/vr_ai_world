@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, request
+from flask import Flask, send_from_directory, request 
 from flask_cors import CORS
 from diffusers import ShapEPipeline
 from diffusers.utils import export_to_obj
@@ -23,6 +23,10 @@ def get_ai_3d_model(modeldesc):
     export_to_obj(result[0], obj_path)
 
     return obj_path
+
+@app.route('/')
+def index():
+    return send_from_directory(directory='.', path='index.html')
 
 @app.route('/model')
 def get_model():

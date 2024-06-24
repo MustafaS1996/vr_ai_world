@@ -1,374 +1,295 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system/dist/aframe-physics-system.min.js"></script>
-    <script type="module">
-      import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
-      window.pipeline = pipeline
-    </script>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system/dist/aframe-physics-system.min.js"></script>
+  <script type="module">
+    import { read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+    window.read_audio = read_audio;
+    //window.pipeline = pipeline
+  </script>
+</head>
+<body>
+  <a-scene>
+    <!-- Textarea for Speech Output -->
+    <a-entity
+      id="textArea"
+      geometry="primitive: plane; width: 2; height: 1"
+      material="color: #AAA"
+      position="0 1.6 -3"
+      text="value: Build me a: "
+      visible="false">
+    </a-entity>
+
+    <!-- Button for Starting/Stopping Speech Input -->
+    <a-plane
+      id="startButton"
+      color="cyan"
+      width="1"
+      height="0.5"
+      position="1.6 1.5 -3"
+      text="value: Start Speech Input"
+      cursor-listener obb-collider>
+    </a-plane>
+
+    <a-entity cursor="rayOrigin: mouse"></a-entity>
+
+    <a-plane rotation="-90 0 0" color="purple" height="10" width="10"></a-plane>
+    <a-sky color="blue"></a-sky>
+    <a-entity id="player">
+      <a-camera id="head" wasd-controls look-controls-enabled keyboard-controls="mode: fps"></a-camera>
+      <a-entity id="rightHand" laser-controls="hand: right" raycaster="objects: .clickable"></a-entity>
+      <a-entity id="leftHand" laser-controls="hand: left" raycaster="objects: .clickable"></a-entity>
+    </a-entity>
+
+    <a-light type="ambient" color="#888"></a-light>
+    <a-light type="directional" color="#fff" intensity="0.5" position="0 1 1"></a-light>
+  </a-scene>
+
+  <script id="worker1" type="javascript/worker">
+    import { pipeline, read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+  
+    self.pipeline = pipeline;
+
+    self.onmessage = async function(event) {
+      const audioFloat = event.data.floater;
     
-  </head>
-  <body>
-    <a-scene>
-      <!-- Textarea for Speech Output -->
-      <a-entity
-        id="textArea"
-        geometry="primitive: plane; width: 2; height: 1"
-        material="color: #AAA"
-        position="0 1.6 -3"
-        text="value: Build me a: "
-        visible="false">
-      </a-entity>
-
-      <!-- Button for Starting/Stopping Speech Input -->
-      <a-plane
-        id="startButton"
-        color="cyan"
-        width="1"
-        height="0.5"
-        position="1.6 1.5 -3"
-        text="value: Start Speech Input"
-        cursor-listener obb-collider>
-      </a-plane>
-
-      <!-- <a-entity cursor="rayOrigin: mouse">
-        <a-cursor color="#FF0000" raycaster="objects: .clickable"></a-cursor>
-      </a-entity> -->
-
-      <!-- <a-assets>
-          <a-asset-item id="friend-ply" src="example_mesh_0.ply"></a-asset-item>
-          <a-asset-item id="friend-obj" src="example_mesh_0.obj"></a-asset-item>
-      </a-assets> -->
-   
-
-      <!-- <a-entity id="friend-obj" obj-model="obj: #friend-obj; material: #friend-ply"
-      position = "1 1 1"
-      scale="1 1 1"
-      rotation="90 200 180"
-      class="clickable"
-      cursor-listener
-    ></a-entity> -->
-
-        <a-box id="testbox" position="3 3 -2" rotation="0 45 0" color="#4CC3D9"
-        class="clickable"
-        cursor-listener
-        ></a-box>
-
-      <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
-      <a-sky color="blue"></a-sky>
-      <a-entity id="player">
-        <a-camera id="head" wasd-controls look-controls-enabled  keyboard-controls="mode: fps">
-          <!-- <a-cursor color="#FF0000" raycaster="objects: .clickable"></a-cursor> -->
-        </a-camera>
-        <a-entity id="rightHand" laser-controls="hand: right" raycaster="objects: .clickable">
-        <!-- <a-entity cursor="fuse: false; rayOrigin: mouse" raycaster="objects: .clickable" line="color: #FF0000; opacity: 0.75"></a-entity> -->
-      </a-entity>
-      <a-entity id="leftHand" laser-controls="hand: left" raycaster="objects: .clickable">
-        <!-- <a-entity cursor="fuse: false; rayOrigin: mouse" raycaster="objects: .clickable" line="color: #FF0000; opacity: 0.75"></a-entity> -->
-      </a-entity>
-
-      <a-light type="ambient" color="#888"></a-light>
-      <a-light type="directional" color="#fff" intensity="0.5" position="0 1 1"></a-light>
-
-      <a-entity id="friend-obj" position="0 1 1" rotation="-90 0 90" scale="1 1 1" class="clickable" cursor-listener ></a-entity>
-
-    </a-scene>
+      console.log(audioFloat)
     
-    <script>
-          let isRecording = false; // Variable to track if speech recognition is active
-          let recognizedText = ''; // Variable to store recognized speech
-          let mediaRecorder = null; // MediaRecorder object
-          let audioChunks = []; // Array to store audio chunks
-          document.getElementById('startButton').classList.add('clickable');
+      // Use the new transcriber API
+      const transcriber = await self.pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+      const output = await transcriber(audioFloat);
+    
+      // Post the transcription result back to the main thread
+      self.postMessage({ text: output.text });
+    };
+    
 
-          document.getElementById('startButton').addEventListener('click', async function () {
-            const textArea = document.getElementById('textArea');
-            textArea.setAttribute('visible', true); // Always show text area when button is clicked
+  </script>
+  
+  <script>
 
-            if (!isRecording) { // Start recording
-              // Request permission to use the microphone
-              try {
-                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    var blob = new Blob([
+        document.querySelector('#worker1').textContent
+      ], { type: "text/javascript" })
 
-                // Initialize MediaRecorder
-                mediaRecorder = new MediaRecorder(audioStream);
-                
-                // Clear any previous audio chunks
-                audioChunks = [];
-                
-                // Handle data available event to store audio chunks
-                mediaRecorder.ondataavailable = event => {
-                  audioChunks.push(event.data);
-                };
+    // Note: window.webkitURL.createObjectURL() in Chrome 10+.
+    var worker = new Worker(window.URL.createObjectURL(blob), { type: "module" });
 
-                // Start recording
-                mediaRecorder.start();
-                console.log('Recording started');
+    let isRecording = false; // Variable to track if speech recognition is active
+    let recognizedText = ''; // Variable to store recognized speech
+    let mediaRecorder = null; // MediaRecorder object
+    let audioChunks = []; // Array to store audio chunks
+    document.getElementById('startButton').classList.add('clickable');
 
-                // Update button state
-                isRecording = true;
-                const button = document.getElementById('startButton');
-                button.setAttribute('color', 'red');
-                button.setAttribute('text', 'value', 'Stop Speech Input');
-              } catch (error) {
-                console.error('Error accessing microphone:', error);
-              }
-            } else { // Stop recording
-              mediaRecorder.stop();
+    document.getElementById('startButton').addEventListener('click', async function () {
+      const textArea = document.getElementById('textArea');
+      textArea.setAttribute('visible', true); // Always show text area when button is clicked
 
-              // Handle stop event to process the audio
-              mediaRecorder.onstop = async () => {
-                console.log('Recording stopped, processing...');
+      if (!isRecording) { // Start recording
+        // Request permission to use the microphone
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-                // Create a Blob from the audio chunks
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          // Initialize MediaRecorder
+          mediaRecorder = new MediaRecorder(audioStream);
+          
+          // Clear any previous audio chunks
+          audioChunks = [];
+          
+          // Handle data available event to store audio chunks
+          mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+          };
 
-                // Create a URL for the Blob
-                const url = URL.createObjectURL(audioBlob);
+          // Start recording
+          mediaRecorder.start();
+          console.log('Recording started');
 
-                // Use the new transcriber API
-                const transcriber = await window.pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
-                const output = await transcriber(url);
-
-                recognizedText = output.text; // Save recognized speech to variable
-                console.log('Recognized speech:', recognizedText);
-
-                // Update text entity with recognized speech
-                textArea.setAttribute('text', 'value', 'Build me a: ' + recognizedText);
-
-                loadModel(recognizedText)
-
-                // Revoke the Blob URL after processing
-                URL.revokeObjectURL(url);
-              };
-
-              // Update button state
-              isRecording = false;
-              const button = document.getElementById('startButton');
-              button.setAttribute('color', 'green');
-              button.setAttribute('text', 'value', 'Start Speech Input');
-            }
-          });
-
-                  // Function to fetch the model description from the server and log it to the console
-                  function loadModel(description) {
-                      // const description = 'a chocolate donut';
-                      const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`; // URL of the model with query parameter
-
-                      fetch(url)
-                          .then(response => {
-                              if (!response.ok) {
-                                  throw new Error('Network response was not ok ' + response.statusText);
-                              }
-                              return response.blob(); // Get the response as text
-                          })
-                          .then(blob => {
-                            const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
-                            const entity = document.getElementById('friend-obj'); // Get the a-entity
-                            entity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
-                          })
-                          .catch(error => {
-                              console.error('There was a problem with the fetch operation:', error);
-                          });
-                  }
-
-        // Call the function to load the model description
-        
-    </script>
-
-<!-- <script>
-  // Wait for the scene to load
-  document.addEventListener('DOMContentLoaded', function () {
-    const sceneEl = document.querySelector('a-scene');
-    const clickableEls = document.querySelectorAll('.clickable'); // Select all clickable objects
-    let currentDraggedEl = null; // Track the currently dragged element
-    let textBox = document.createElement('a-box');
-
-    function createBox(event, textinBox) {
-      const clickedEl = event.target;
-      const sceneEl = document.querySelector('a-scene');
-      sceneEl.remove(textBox)
-
-      // Create new box
-      const newBox = document.createElement('a-box');
-      newBox.setAttribute('position', {x: 0, y: 1, z: -5});
-      newBox.setAttribute('color', '#FFC65D');
-      newBox.setAttribute('scale', {x: 2, y: 2, z: 2});
-
-      // Create text
-      const text = document.createElement('a-text');
-      text.setAttribute('value', ` ${textinBox}`);
-      text.setAttribute('color', '#000');
-      text.setAttribute('position', {x: -1, y: 0, z: 0.5});
-      text.setAttribute('scale', {x: 4, y: 4, z: 4});
-
-      newBox.appendChild(text); // Attach text to the new box
-
-      textBox = newBox
-      sceneEl.appendChild(textBox); // Attach the new box to the scene
-    }
-
-    // Function to start dragging
-    function startDrag(evt) {
-      currentDraggedEl = evt.currentTarget; // Set the current element being dragged
-      currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
-      createBox(event, `started`)
-      
-    }
-
-    // Function to do the dragging
-    function doDrag(evt) {
-      if (currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
-        const cursorEl = document.querySelector('a-cursor');
-        const intersection = cursorEl.components.raycaster.getIntersection(currentDraggedEl);
-        createBox(event, `dragging inside ` + currentDraggedEl.getAttribute('id'))
-        if (intersection) {
-          const point = intersection.point;
-          currentDraggedEl.setAttribute('position', { x: point.x, y: point.y, z: currentDraggedEl.getAttribute('position').z });
-          // createBox(event, `dragging ${point.x}`)
+          // Update button state
+          isRecording = true;
+          const button = document.getElementById('startButton');
+          button.setAttribute('color', 'red');
+          button.setAttribute('text', 'value', 'Stop Speech Input');
+        } catch (error) {
+          console.error('Error accessing microphone:', error);
         }
-      }
-    }
+      } else { // Stop recording
+        mediaRecorder.stop();
 
-    // Function to end dragging
-    function endDrag(evt) {
-      if (currentDraggedEl) {
-        currentDraggedEl.classList.remove('dragging'); // Optional: Remove the class if added
-        currentDraggedEl = null; // Clear the currently dragged element
-      }
-    }
+        // Handle stop event to process the audio
+        // Handle stop event to process the audio
+        mediaRecorder.onstop = () => {
+                  console.log('Recording stopped, processing...');
 
-    // Attach event listeners to each clickable element
-    clickableEls.forEach(el => {
-      el.addEventListener('mousedown', startDrag);
+                  // Create a Blob from the audio chunks
+                  const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+
+                  // Create a URL for the Blob
+                  const url = URL.createObjectURL(audioBlob);
+
+                  //floater = read_audio(url) 
+
+                  // Read the audio
+                  read_audio(url, 16000)
+                    .then(floater => {
+                      // Post the floater data to the web worker
+                      worker.postMessage({ floater });
+
+                      // Listen for messages from the worker
+                      worker.onmessage = function(event) {
+                        const output = event.data;
+
+                        recognizedText = output.text; // Save recognized speech to variable
+                        console.log('Recognized speech:', recognizedText);
+
+                        // Update text entity with recognized speech
+                        textArea.setAttribute('text', 'value', 'Build me a: ' + recognizedText);
+
+                        loadModel(recognizedText);
+
+                        // Revoke the Blob URL after processing
+                        URL.revokeObjectURL(url);
+                      };
+
+                      worker.onerror = function(error) {
+                        console.error('There was a problem with the worker:', error);
+                      };
+                    })
+                    .catch(error => {
+                      console.error('There was a problem with reading the audio:', error);
+                    });
+
+                  // Update button state
+                  isRecording = false;
+                  const button = document.getElementById('startButton');
+                  button.setAttribute('color', 'green');
+                  button.setAttribute('text', 'value', 'Start Speech Input');
+
+                };
+              }
     });
 
-    // Attach moving and up listeners to the scene
-    sceneEl.addEventListener('mousemove', doDrag);
-    sceneEl.addEventListener('mouseup', endDrag);
-  });
-</script>
- -->
 
+  // Handle messages from the worker
+  worker.onmessage = function(event) {
+    recognizedText = event.data.text; // Get the recognized text from the worker
+    console.log('Recognized speech:', recognizedText);
 
+    const textArea = document.getElementById('textArea');
+    // Update text entity with recognized speech
+    textArea.setAttribute('text', 'value', 'Build me a: ' + recognizedText);
 
+    loadModel(recognizedText);
+  };
 
+    // Function to fetch the model description from the server and log it to the console
+    function loadModel(description) {
+      const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`; // URL of the model with query parameter
 
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+          }
+          return response.blob(); // Get the response as Blob
+        })
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
+          addModelToScene(blobUrl); // Add the model to the scene
+        })
+        .catch(error => {
+          console.error('There was a problem with the fetch operation:', error);
+        });
+    }
 
-<script>
-  // Wait for the scene to load
-  document.addEventListener('DOMContentLoaded', function () {
-    const sceneEl = document.querySelector('a-scene');
-    const clickableEls = document.querySelectorAll('.clickable'); // Select all clickable objects
-    let currentDraggedEl = null; // Track the currently dragged element
-    let textBox = document.createElement('a-box');
+    // Function to add the model to the scene
+    function addModelToScene(blobUrl) {
+      const sceneEl = document.querySelector('a-scene'); // Get the scene element
+      const newEntity = document.createElement('a-entity'); // Create a new entity
+      newEntity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
+      newEntity.setAttribute('position', getRandomPosition()); // Set a random position
+      newEntity.setAttribute('class', 'clickable'); // Add clickable class
+      newEntity.setAttribute('cursor-listener', ''); // Add cursor-listener attribute
+      sceneEl.appendChild(newEntity); // Add the new entity to the scene
+      sceneEl.flushToDOM(); // Refresh the scene
+    }
 
-    
-      // Function to handle raycaster intersection start
-      function handleIntersectionStart(evt) {
-        intersectedEl = evt.currentTarget; // Set the current intersected element
-        createBox(evt, `intersect started ` + intersectedEl.getAttribute('id'));
+    // Function to generate a random position
+    function getRandomPosition() {
+      return `${Math.random() * 4 - 2} 1 ${Math.random() * 4 - 2}`;
+    }
+
+    // Debug code
+    document.addEventListener('DOMContentLoaded', function () {
+      const sceneEl = document.querySelector('a-scene');
+      const clickableEls = document.querySelectorAll('.clickable'); // Select all clickable objects
+      let currentDraggedEl = null; // Track the currently dragged element
+      let textBox = document.createElement('a-box');
+
+      function createBox(event, textinBox) {
+        const clickedEl = event.target;
+        const sceneEl = document.querySelector('a-scene');
+        sceneEl.remove(textBox);
+
+        // Create new box
+        const newBox = document.createElement('a-box');
+        newBox.setAttribute('position', {x: 0, y: 1, z: -5});
+        newBox.setAttribute('color', '#FFC65D');
+        newBox.setAttribute('scale', {x: 2, y: 2, z: 2});
+
+        // Create text
+        const text = document.createElement('a-text');
+        text.setAttribute('value', ` ${textinBox}`);
+        text.setAttribute('color', '#000');
+        text.setAttribute('position', {x: -1, y: 0, z: 0.5});
+        text.setAttribute('scale', {x: 4, y: 4, z: 4});
+
+        newBox.appendChild(text); // Attach text to the new box
+
+        textBox = newBox;
+        sceneEl.appendChild(textBox); // Attach the new box to the scene
       }
-  
-      // Function to handle raycaster intersection end
-      function handleIntersectionEnd(evt) {
-        createBox(evt, `intersect ended ` + intersectedEl.getAttribute('id'));
-        intersectedEl = null; // Clear the intersected element
+
+      // Function to start dragging
+      function startDrag(evt) {
+        currentDraggedEl = evt.currentTarget; // Set the current element being dragged
+        currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
+        createBox(event, `started`);
       }
 
-        // Function to start dragging
-        function startDrag(evt) {
-        if (intersectedEl) {
-          isTriggerPressed = true;
-          currentDraggedEl = intersectedEl; // Set the current element being dragged
-          if (currentDraggedEl) {
-            currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
-            createBox(evt, `started dragging ` + isTriggerPressed);
+      // Function to do the dragging
+      function doDrag(evt) {
+        if (currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
+          const cursorEl = document.querySelector('a-cursor');
+          const intersection = cursorEl.components.raycaster.getIntersection(currentDraggedEl);
+          createBox(event, `dragging inside ` + currentDraggedEl.getAttribute('id'));
+          if (intersection) {
+            const point = intersection.point;
+            currentDraggedEl.setAttribute('position', { x: point.x, y: point.y, z: currentDraggedEl.getAttribute('position').z });
           }
         }
       }
 
-    // Function to do the dragging
-    function doDrag(evt) {
-      createBox(evt, `lets dragging ` + isTriggerPressed + currentDraggedEl.getAttribute('id'));
-      if (isTriggerPressed && currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
-        const controllerEl = evt.target; // The controller entity that triggered the event
-        const intersection = controllerEl.components.raycaster.getIntersection(currentDraggedEl); // Get the intersection point        
-        createBox(event, `dragging inside ` + currentDraggedEl.getAttribute('id'))
-
-        if (intersection) {
-          const point = intersection.point;
-          currentDraggedEl.setAttribute('position', { x: point.x, y: point.y, z: currentDraggedEl.getAttribute('position').z  });
-          // createBox(event, `dragging x ${point.x}`)
-
-        }
-      }
-    }
-
-    // Function to end dragging
-    function endDrag(evt) {
-        isTriggerPressed = false;
+      // Function to end dragging
+      function endDrag(evt) {
         if (currentDraggedEl) {
           currentDraggedEl.classList.remove('dragging'); // Optional: Remove the class if added
           currentDraggedEl = null; // Clear the currently dragged element
-          createBox(event, `drag off `)
-  
         }
       }
 
-    
-
-    
-
       // Attach event listeners to each clickable element
       clickableEls.forEach(el => {
-        el.addEventListener('raycaster-intersected', handleIntersectionStart);
-        el.addEventListener('raycaster-intersected-cleared', handleIntersectionEnd);
+        el.addEventListener('mousedown', startDrag);
       });
 
-    // Attach drag and drop event listeners to the VR controllers
-    const rightHand = document.querySelector('#rightHand');
-    const leftHand = document.querySelector('#leftHand');
-    
-    rightHand.addEventListener('triggerdown', startDrag);
-    rightHand.addEventListener('triggerup', endDrag);
-    rightHand.addEventListener('raycaster-intersection', doDrag);
-    
-    leftHand.addEventListener('triggerdown', startDrag);
-    leftHand.addEventListener('triggerup', endDrag);
-    leftHand.addEventListener('raycaster-intersection', doDrag);
+      // Attach moving and up listeners to the scene
+      sceneEl.addEventListener('mousemove', doDrag);
+      sceneEl.addEventListener('mouseup', endDrag);
+    });
+  </script>
 
-
-
-
-    function createBox(event, textinBox) {
-      const clickedEl = event.target;
-      const sceneEl = document.querySelector('a-scene');
-      sceneEl.remove(textBox)
-
-      // Create new box
-      const newBox = document.createElement('a-box');
-      newBox.setAttribute('position', {x: 0, y: 1, z: -5});
-      newBox.setAttribute('color', '#FFC65D');
-      newBox.setAttribute('scale', {x: 2, y: 2, z: 2});
-
-      // Create text
-      const text = document.createElement('a-text');
-      text.setAttribute('value', ` ${textinBox}`);
-      text.setAttribute('color', '#000');
-      text.setAttribute('position', {x: -1, y: 0, z: 0.5});
-      text.setAttribute('scale', {x: 1, y: 1, z: 1});
-
-      newBox.appendChild(text); // Attach text to the new box
-
-      textBox = newBox
-      sceneEl.appendChild(textBox); // Attach the new box to the scene
-    }
-
-  });
-</script>
-
-  </body>
+</body>
 </html>
