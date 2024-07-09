@@ -35,7 +35,7 @@
     </a-plane>
 
     <a-entity cursor="rayOrigin: mouse"></a-entity>
-    <a-plane static-body rotation="-90 0 0" color="purple" scale="15 15 15" ></a-plane>
+    <a-plane static-body rotation="-90 0 0" color="purple" scale="25 25 25" ></a-plane>
     <a-sky color="blue"></a-sky>
     <a-entity id="player">
       <a-camera id="head" wasd-controls look-controls-enabled keyboard-controls="mode: fps"></a-camera>
@@ -290,7 +290,7 @@
       function startDrag(evt) {
         currentDraggedEl = evt.currentTarget; // Set the current element being dragged
         currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
-        createBox(event, `started`);
+        // createBox(event, `started`);
       }
 
       // Function to do the dragging
@@ -298,7 +298,7 @@
         if (currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
           const cursorEl = document.querySelector('a-cursor');
           const intersection = cursorEl.components.raycaster.getIntersection(currentDraggedEl);
-          createBox(event, `dragging inside ` + currentDraggedEl.getAttribute('id'));
+          // createBox(event, `dragging inside ` + currentDraggedEl.getAttribute('id'));
           if (intersection) {
             const point = intersection.point;
             currentDraggedEl.setAttribute('position', { x: point.x, y: point.y, z: currentDraggedEl.getAttribute('position').z });
