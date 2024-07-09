@@ -19,7 +19,7 @@
       geometry="primitive: plane; width: 2; height: 1"
       material="color: #AAA"
       position="0 1.6 -3"
-      text="value: Build me a: "
+      text="value: What Would You Like to See in 3D?: "
       visible="false">
     </a-entity>
 
@@ -148,9 +148,11 @@
                         console.log('Recognized speech:', recognizedText);
 
                         // Update text entity with recognized speech
-                        textArea.setAttribute('text', 'value', 'Build me a: ' + recognizedText);
+                        textArea.setAttribute('text', 'value', 'What Would You Like to See in 3D?: ' + recognizedText);
 
                         loadModel(recognizedText);
+                        addBoxToScene();
+
 
                         // Revoke the Blob URL after processing
                         URL.revokeObjectURL(url);
@@ -182,9 +184,10 @@
 
     const textArea = document.getElementById('textArea');
     // Update text entity with recognized speech
-    textArea.setAttribute('text', 'value', 'Build me a: ' + recognizedText);
+    textArea.setAttribute('text', 'value', 'What Would You Like to See in 3D?: ' + recognizedText);
 
     loadModel(recognizedText);
+    addBoxToScene();
   };
 
     // Function to fetch the model description from the server and log it to the console
@@ -224,6 +227,25 @@
       // Safely update properties here
         newEntity.setAttribute('dynamic-body', ''); // Add cursor-listener attribute
         newEntity.components['dynamic-body'].initComponent();
+
+      });
+    }
+
+    function addBoxToScene() {
+      const sceneEl = document.querySelector('a-scene'); // Get the scene element
+      const newBoxEntity = document.createElement('a-box'); // Create a new entity
+      newBoxEntity.setAttribute('position', getRandomPosition()); // Set a random position
+      newBoxEntity.setAttribute('class', 'clickable'); // Add clickable class
+      newBoxEntity.setAttribute('cursor-listener', ''); // Add cursor-listener attribute
+      sceneEl.appendChild(newBoxEntity); // Add the new entity to the scene
+      sceneEl.flushToDOM(); // Refresh the scene
+
+
+      newBoxEntity.addEventListener('loaded', () => {
+      console.log('Entity loaded and ready for manipulation');
+      // Safely update properties here
+      newBoxEntity.setAttribute('dynamic-body', ''); // Add cursor-listener attribute
+      newBoxEntity.components['dynamic-body'].initComponent();
 
       });
     }
