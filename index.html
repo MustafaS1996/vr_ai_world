@@ -40,10 +40,9 @@
     <a-entity id="player">
       <a-camera id="head" wasd-controls look-controls-enabled keyboard-controls="mode: fps"></a-camera>
       <a-entity id="rightHand" laser-controls="hand: right" raycaster="objects: .clickable"></a-entity>
-      <a-entity id="leftHand" laser-controls="hand: left" raycaster="objects: .clickable"></a-entity>
+      <a-entity id="leftHand"  laser-controls="hand: left" raycaster="objects: .clickable"></a-entity>
     </a-entity>
 
-    <a-box dynamic-body color="red" scale="0.5 0.5 0.5" position="0.2 3 -2"></a-box>
 
 
     <a-light type="ambient" color="#888"></a-light>
@@ -177,19 +176,6 @@
     });
 
 
-  // Handle messages from the worker
-  worker.onmessage = function(event) {
-    recognizedText = event.data.text; // Get the recognized text from the worker
-    console.log('Recognized speech:', recognizedText);
-
-    const textArea = document.getElementById('textArea');
-    // Update text entity with recognized speech
-    textArea.setAttribute('text', 'value', 'What Would You Like to See in 3D?: ' + recognizedText);
-
-    loadModel(recognizedText);
-    addBoxToScene();
-  };
-
     // Function to fetch the model description from the server and log it to the console
     function loadModel(description) {
       const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`; // URL of the model with query parameter
@@ -203,7 +189,8 @@
         })
         .then(blob => {
           const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
-          addModelToScene(blobUrl); // Add the model to the scene
+          const newEntity = addModelToScene(blobUrl); // Add the model to the scene
+          addBoxToScene(newEntity)
         })
         .catch(error => {
           console.error('There was a problem with the fetch operation:', error);
@@ -215,28 +202,24 @@
       const sceneEl = document.querySelector('a-scene'); // Get the scene element
       const newEntity = document.createElement('a-entity'); // Create a new entity
       newEntity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
-      newEntity.setAttribute('position', getRandomPosition()); // Set a random position
-      newEntity.setAttribute('class', 'clickable'); // Add clickable class
-      newEntity.setAttribute('cursor-listener', ''); // Add cursor-listener attribute
-      sceneEl.appendChild(newEntity); // Add the new entity to the scene
-      sceneEl.flushToDOM(); // Refresh the scene
+      newEntity.setAttribute('position', {x: 0, y: 0, z: 0} );// getRandomPosition()); // Set a random position
+  
+      // sceneEl.appendChild(newEntity); // Add the new entity to the scene
+      // sceneEl.flushToDOM(); // Refresh the scene
 
 
-      newEntity.addEventListener('loaded', () => {
-      console.log('Entity loaded and ready for manipulation');
-      // Safely update properties here
-        newEntity.setAttribute('dynamic-body', ''); // Add cursor-listener attribute
-        newEntity.components['dynamic-body'].initComponent();
-
-      });
+      
+      return newEntity;
     }
 
-    function addBoxToScene() {
+    function addBoxToScene(modelEntity) {
       const sceneEl = document.querySelector('a-scene'); // Get the scene element
-      const newBoxEntity = document.createElement('a-box'); // Create a new entity
+      const newBoxEntity = document.createElement('a-sphere'); // Create a new entity
       newBoxEntity.setAttribute('position', getRandomPosition()); // Set a random position
       newBoxEntity.setAttribute('class', 'clickable'); // Add clickable class
       newBoxEntity.setAttribute('cursor-listener', ''); // Add cursor-listener attribute
+      newBoxEntity.setAttribute('opacity', '0.0');
+      newBoxEntity.appendChild(modelEntity)
       sceneEl.appendChild(newBoxEntity); // Add the new entity to the scene
       sceneEl.flushToDOM(); // Refresh the scene
 
@@ -268,7 +251,7 @@
         sceneEl.remove(textBox);
 
         // Create new box
-        const newBox = document.createElement('a-box');
+        const newBox = document.createElement('a-sphere');
         newBox.setAttribute('position', {x: 0, y: 1, z: -5});
         newBox.setAttribute('color', '#FFC65D');
         newBox.setAttribute('scale', {x: 2, y: 2, z: 2});
