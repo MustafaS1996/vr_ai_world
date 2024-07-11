@@ -1,175 +1,314 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system/dist/aframe-physics-system.min.js"></script>
-  </head>
-  <body>
-    <a-scene>
-      <!-- Textarea for Speech Output -->
-      <a-entity
-        id="textArea"
-        geometry="primitive: plane; width: 2; height: 1"
-        material="color: #AAA"
-        position="0 1.6 -3"
-        text="value: Build me a: "
-        visible="false">
-      </a-entity>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+  <script src="https://unpkg.com/super-hands@^3.0.4/dist/super-hands.min.js"></script>
 
-      <!-- Button for Starting/Stopping Speech Input -->
-      <a-plane
-        id="startButton"
-        color="cyan"
-        width="1"
-        height="0.5"
-        position="1.6 1.5 -3"
-        text="value: Start Speech Input"
-        cursor-listener>
-      </a-plane>
+  <script type="module">
+    import { read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+    window.read_audio = read_audio;
+    //window.pipeline = pipeline
+  </script>
+</head>
+<body>
+  <a-scene>
+    <!-- Textarea for Speech Output -->
+    <a-entity
+      id="textArea"
+      geometry="primitive: plane; width: 2; height: 1"
+      material="color: #AAA"
+      position="0 1.6 -3"
+      text="value: What Would You Like to See in 3D?: "
+      visible="false">
+    </a-entity>
 
-      <a-entity cursor="rayOrigin: mouse"></a-entity>
+    <!-- Button for Starting/Stopping Speech Input -->
+    <a-plane
+      id="startButton"
+      color="cyan"
+      width="1"
+      height="0.5"
+      position="1.6 1.5 -3"
+      text="value: Start Speech Input"
+      cursor-listener obb-collider>
+    </a-plane>
 
-      <a-assets>
-          <a-asset-item id="friend-ply" src="example_mesh_0.ply"></a-asset-item>
-          <a-asset-item id="friend-obj" src="example_mesh_0.obj"></a-asset-item>
-      </a-assets>
+    <a-entity cursor="rayOrigin: mouse"></a-entity>
+    <a-plane static-body rotation="-90 0 0" color="purple" scale="25 25 25" ></a-plane>
+    <a-sky color="blue"></a-sky>
+    <a-entity id="player">
+      <a-camera id="head" wasd-controls look-controls-enabled keyboard-controls="mode: fps"></a-camera>
+      <a-entity sphere-collider="objects: a-box" super-hands hand-controls="hand: left"></a-entity>
+      <a-entity sphere-collider="objects: a-box" super-hands hand-controls="hand: right"></a-entity>
+    </a-entity>
 
-      <a-plane rotation="-90 0 0" color="purple" height="10" width="10" ></a-plane>
-      <a-sky color="blue"></a-sky>
-      <a-entity id="player">
-        <a-camera id="head" wasd-controls look-controls-enabled  keyboard-controls="mode: fps"></a-camera>
-        <a-entity id="leftHand" hand-controls="hand: left" smooth-locomotion="active: true"></a-entity>
-        <a-entity id="rightHand" hand-controls="hand: right" raycaster="lineColor: #fff; lineOpacity: 0.7; far: 10"
-        grabber></a-entity>
-      </a-entity>
+    <a-box hoverable grabbable stretchable draggable droppable color="blue" position="0 0 -1"></a-box>
 
-      <a-entity obj-model="obj: #friend-obj; material: #friend-ply"
-        position = "1 1 1"
-        scale="0.001 0.001 0.001"
-        rotation="90 200 180"
-        grabbable
-      ></a-entity>
-    </a-scene>
+    <a-light type="ambient" color="#888"></a-light>
+    <a-light type="directional" color="#fff" intensity="0.5" position="0 1 1"></a-light>
+  </a-scene>
+
+  <script id="worker1" type="javascript/worker">
+    import { pipeline, read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+  
+    self.pipeline = pipeline;
+
+    self.onmessage = async function(event) {
+      const audioFloat = event.data.floater;
     
-    <script>
-      var isRecording = false; // Variable to track if speech recognition is active
-      var recognizedText = ''; // Variable to store recognized speech
-      var recognition = null; // SpeechRecognition object
+      console.log(audioFloat)
+    
+      // Use the new transcriber API
+      const transcriber = await self.pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+      const output = await transcriber(audioFloat);
+    
+      // Post the transcription result back to the main thread
+      self.postMessage({ text: output.text });
+    };
+    
 
-      document.getElementById('startButton').addEventListener('click', function () {
-        var textArea = document.getElementById('textArea');
-        textArea.setAttribute('visible', true); // Always show text area when button is clicked
+  </script>
+  
+  <script>
 
-        if (!isRecording) { // Start recording
-          // Check if SpeechRecognition is supported
-          if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-            // Request permission to use microphone
-            navigator.mediaDevices.getUserMedia({ audio: true })
-              .then(function (stream) {
-                // Set up speech recognition
-                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-                recognition.lang = 'en-US'; // Adjust language setting if needed
-                recognition.continuous = true;
+    var blob = new Blob([
+        document.querySelector('#worker1').textContent
+      ], { type: "text/javascript" })
 
-                // Handle recognition events
-                recognition.onstart = function () {
-                  console.log('Speech recognition started');
-                };
+    // Note: window.webkitURL.createObjectURL() in Chrome 10+.
+    var worker = new Worker(window.URL.createObjectURL(blob), { type: "module" });
 
-                recognition.onresult = function (event) {
-                  var transcript = event.results[event.results.length - 1][0].transcript;
-                  console.log('Recognized speech:', transcript);
-                  recognizedText = transcript; // Save recognized speech to variable
-                  // Update text entity with recognized speech
-                  textArea.setAttribute('text', 'value', 'Build me a: ' + transcript);
-                };
+    let isRecording = false; // Variable to track if speech recognition is active
+    let recognizedText = ''; // Variable to store recognized speech
+    let mediaRecorder = null; // MediaRecorder object
+    let audioChunks = []; // Array to store audio chunks
+    document.getElementById('startButton').classList.add('clickable');
 
-                recognition.onerror = function (event) {
-                  console.error('Speech recognition error:', event.error);
-                };
+    document.getElementById('startButton').addEventListener('click', async function () {
+      const textArea = document.getElementById('textArea');
+      textArea.setAttribute('visible', true); // Always show text area when button is clicked
 
-                // Start recognition
-                recognition.start();
+      if (!isRecording) { // Start recording
+        // Request permission to use the microphone
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-                // Update button state
-                isRecording = true;
-                var button = document.getElementById('startButton');
-                button.setAttribute('color', 'red');
-                button.setAttribute('text', 'value', 'Stop Speech Input');
-              })
-              .catch(function (error) {
-                console.error('Error accessing microphone:', error);
-              });
-          } else {
-            console.error('Speech recognition not supported in this browser');
-          }
-        } else { // Stop recording
-          if (recognition) {
-            // Stop speech recognition
-            recognition.stop();
-            console.log('Speech recognition stopped');
-            addObjects();
-          }
+          // Initialize MediaRecorder
+          mediaRecorder = new MediaRecorder(audioStream);
+          
+          // Clear any previous audio chunks
+          audioChunks = [];
+          
+          // Handle data available event to store audio chunks
+          mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+          };
+
+          // Start recording
+          mediaRecorder.start();
+          console.log('Recording started');
+
           // Update button state
-          isRecording = false;
-          var button = document.getElementById('startButton');
-          button.setAttribute('color', 'green');
-          button.setAttribute('text', 'value', 'Start Speech Input');
+          isRecording = true;
+          const button = document.getElementById('startButton');
+          button.setAttribute('color', 'red');
+          button.setAttribute('text', 'value', 'Stop Speech Input');
+        } catch (error) {
+          console.error('Error accessing microphone:', error);
         }
-      });
-    </script> 
+      } else { // Stop recording
+        mediaRecorder.stop();
 
-    <script>
-      // List of objects with their positions
-      var objects = [
-        { position: '0 1 5', scale: '0.001 0.001 0.001', rotation: '0 0 0'},
-        // { position: '0 1 1', scale: '0.00001 0.00001 0.00001', rotation: '0 0 0'},
-        // { position: '1 1 0', scale: '0.5 0.5 0.5', rotation: '90 200 180' },
+        // Handle stop event to process the audio
+        // Handle stop event to process the audio
+        mediaRecorder.onstop = () => {
+                  console.log('Recording stopped, processing...');
 
-        // Add more objects as needed
-      ];
+                  // Create a Blob from the audio chunks
+                  const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
 
-      // Function to create and add objects to the scene
-      function addObjects() {
-        var positionChange = positionChange + 1;
-        var scene = document.querySelector('a-scene');
-        objects.forEach(function (object, index) {
-          var entity = document.createElement('a-entity');
-          entity.setAttribute('obj-model', 'obj: #friend-obj; material: #friend-ply');
-          entity.setAttribute('position', object.position);
-          entity.setAttribute('scale', object.scale);
-          entity.setAttribute('rotation', object.rotation);
-          entity.setAttribute('grabbable', ''); // Make objects grabbable
-          scene.appendChild(entity);
+                  // Create a URL for the Blob
+                  const url = URL.createObjectURL(audioBlob);
+
+                  //floater = read_audio(url) 
+
+                  // Read the audio
+                  read_audio(url, 16000)
+                    .then(floater => {
+                      // Post the floater data to the web worker
+                      worker.postMessage({ floater });
+
+                      // Listen for messages from the worker
+                      worker.onmessage = function(event) {
+                        const output = event.data;
+
+                        recognizedText = output.text; // Save recognized speech to variable
+                        console.log('Recognized speech:', recognizedText);
+
+                        // Update text entity with recognized speech
+                        textArea.setAttribute('text', 'value', 'What Would You Like to See in 3D?: ' + recognizedText);
+
+                        loadModel(recognizedText);
+                        addBoxToScene();
+
+
+                        // Revoke the Blob URL after processing
+                        URL.revokeObjectURL(url);
+                      };
+
+                      worker.onerror = function(error) {
+                        console.error('There was a problem with the worker:', error);
+                      };
+                    })
+                    .catch(error => {
+                      console.error('There was a problem with reading the audio:', error);
+                    });
+
+                  // Update button state
+                  isRecording = false;
+                  const button = document.getElementById('startButton');
+                  button.setAttribute('color', 'green');
+                  button.setAttribute('text', 'value', 'Start Speech Input');
+
+                };
+              }
+    });
+
+
+    // Function to fetch the model description from the server and log it to the console
+    function loadModel(description) {
+      const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`; // URL of the model with query parameter
+
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+          }
+          return response.blob(); // Get the response as Blob
+        })
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
+          const newEntity = addModelToScene(blobUrl); // Add the model to the scene
+          addBoxToScene(newEntity)
+        })
+        .catch(error => {
+          console.error('There was a problem with the fetch operation:', error);
         });
+    }
+
+    // Function to add the model to the scene
+    function addModelToScene(blobUrl) {
+      const sceneEl = document.querySelector('a-scene'); // Get the scene element
+      const newEntity = document.createElement('a-entity'); // Create a new entity
+      newEntity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
+      newEntity.setAttribute('position', {x: 0, y: 0, z: 0} );// getRandomPosition()); // Set a random position
+  
+      // sceneEl.appendChild(newEntity); // Add the new entity to the scene
+      // sceneEl.flushToDOM(); // Refresh the scene
+
+
+      
+      return newEntity;
+    }
+
+    function addBoxToScene(modelEntity) {
+      const sceneEl = document.querySelector('a-scene'); // Get the scene element
+      const newBoxEntity = document.createElement('a-sphere'); // Create a new entity
+      newBoxEntity.setAttribute('position', getRandomPosition()); // Set a random position
+      newBoxEntity.setAttribute('class', 'clickable'); // Add clickable class
+      newBoxEntity.setAttribute('cursor-listener', ''); // Add cursor-listener attribute
+      newBoxEntity.setAttribute('opacity', '0.0');
+      newBoxEntity.appendChild(modelEntity)
+      sceneEl.appendChild(newBoxEntity); // Add the new entity to the scene
+      sceneEl.flushToDOM(); // Refresh the scene
+
+
+      newBoxEntity.addEventListener('loaded', () => {
+      console.log('Entity loaded and ready for manipulation');
+      // Safely update properties here
+      newBoxEntity.setAttribute('dynamic-body', ''); // Add cursor-listener attribute
+      newBoxEntity.components['dynamic-body'].initComponent();
+
+      });
+    }
+
+    // Function to generate a random position
+    function getRandomPosition() {
+      return `${Math.random() * 4 - 2} 3 ${Math.random() * 4 - 2}`;
+    }
+
+    // Debug code
+    document.addEventListener('DOMContentLoaded', function () {
+      const sceneEl = document.querySelector('a-scene');
+      const clickableEls = document.querySelectorAll('.clickable'); // Select all clickable objects
+      let currentDraggedEl = null; // Track the currently dragged element
+      let textBox = document.createElement('a-box');
+
+      function createBox(event, textinBox) {
+        const clickedEl = event.target;
+        const sceneEl = document.querySelector('a-scene');
+        sceneEl.remove(textBox);
+
+        // Create new box
+        const newBox = document.createElement('a-sphere');
+        newBox.setAttribute('position', {x: 0, y: 1, z: -5});
+        newBox.setAttribute('color', '#FFC65D');
+        newBox.setAttribute('scale', {x: 2, y: 2, z: 2});
+
+        // Create text
+        const text = document.createElement('a-text');
+        text.setAttribute('value', ` ${textinBox}`);
+        text.setAttribute('color', '#000');
+        text.setAttribute('position', {x: -1, y: 0, z: 0.5});
+        text.setAttribute('scale', {x: 4, y: 4, z: 4});
+
+        newBox.appendChild(text); // Attach text to the new box
+
+        textBox = newBox;
+        sceneEl.appendChild(textBox); // Attach the new box to the scene
       }
 
-      // Call the function to add objects when the scene loads
-      document.querySelector('a-scene').addEventListener('loaded', addObjects);
-    </script>
+      // Function to start dragging
+      function startDrag(evt) {
+        currentDraggedEl = evt.currentTarget; // Set the current element being dragged
+        currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
+        // createBox(event, `started`);
+      }
 
-<script>
-  AFRAME.registerComponent('grabbable', {
-    init: function () {
-      this.el.addEventListener('mousedown', this.onGrabStart.bind(this));
-      this.el.addEventListener('mouseup', this.onGrabEnd.bind(this));
-    },
-    onGrabStart: function (event) {
-      if (!this.el.body) return;
-      this.grabbed = true;
-      this.constraint = new window.CANNON.LockConstraint(
-        this.el.body,
-        event.detail.cursorEl.components.raycaster.getRaycaster().ray.direction.scale(-0.1)
-      );
-      this.el.sceneEl.systems.physics.driver.world.addConstraint(this.constraint);
-    },
-    onGrabEnd: function () {
-      if (!this.el.body) return;
-      this.grabbed = false;
-      this.el.sceneEl.systems.physics.driver.world.removeConstraint(this.constraint);
-    }
-  });
-</script>
-  </body>
+      // Function to do the dragging
+      function doDrag(evt) {
+        if (currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
+          const cursorEl = document.querySelector('a-cursor');
+          const intersection = cursorEl.components.raycaster.getIntersection(currentDraggedEl);
+          // createBox(event, `dragging inside ` + currentDraggedEl.getAttribute('id'));
+          if (intersection) {
+            const point = intersection.point;
+            currentDraggedEl.setAttribute('position', { x: point.x, y: point.y, z: currentDraggedEl.getAttribute('position').z });
+          }
+        }
+      }
+
+      // Function to end dragging
+      function endDrag(evt) {
+        if (currentDraggedEl) {
+          currentDraggedEl.classList.remove('dragging'); // Optional: Remove the class if added
+          currentDraggedEl = null; // Clear the currently dragged element
+        }
+      }
+
+      // Attach event listeners to each clickable element
+      clickableEls.forEach(el => {
+        el.addEventListener('mousedown', startDrag);
+      });
+
+      // Attach moving and up listeners to the scene
+      sceneEl.addEventListener('mousemove', doDrag);
+      sceneEl.addEventListener('mouseup', endDrag);
+    });
+  </script>
+
+</body>
 </html>
