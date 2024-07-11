@@ -2,9 +2,11 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+  <script src="https://unpkg.com/super-hands@^3.0.4/dist/super-hands.min.js"></script>
+
   <script type="module">
     import { read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
     window.read_audio = read_audio;
@@ -39,11 +41,11 @@
     <a-sky color="blue"></a-sky>
     <a-entity id="player">
       <a-camera id="head" wasd-controls look-controls-enabled keyboard-controls="mode: fps"></a-camera>
-      <a-entity id="rightHand" laser-controls="hand: right" raycaster="objects: .clickable"></a-entity>
-      <a-entity id="leftHand"  laser-controls="hand: left" raycaster="objects: .clickable"></a-entity>
+      <a-entity sphere-collider="objects: a-box" super-hands hand-controls="hand: left"></a-entity>
+      <a-entity sphere-collider="objects: a-box" super-hands hand-controls="hand: right"></a-entity>
     </a-entity>
 
-
+    <a-box hoverable grabbable stretchable draggable droppable color="blue" position="0 0 -1"></a-box>
 
     <a-light type="ambient" color="#888"></a-light>
     <a-light type="directional" color="#fff" intensity="0.5" position="0 1 1"></a-light>
