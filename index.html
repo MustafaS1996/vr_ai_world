@@ -214,7 +214,7 @@
 
     function addBoxToScene(modelEntity) {
       const sceneEl = document.querySelector('a-scene'); // Get the scene element
-      const newBoxEntity = document.createElement('a-box'); // Create a new entity
+      const newBoxEntity = document.createElement('a-sphere'); // Create a new entity
       newBoxEntity.setAttribute('position', getRandomPosition()); // Set a random position
       newBoxEntity.setAttribute('class', 'clickable'); // Add clickable class
       newBoxEntity.setAttribute('cursor-listener', ''); // Add cursor-listener attribute
