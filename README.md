@@ -1,6 +1,6 @@
 # VR 3D World
 
-![Demo](https://github.com/MustafaS1996/vr_ai_world/raw/master/vrdemo.gif)
+![Demo](https://github.com/MustafaS1996/vr_ai_world/raw/main/vrdemo.gif)
 
 Welcome to the VR 3D Object Creator project! This project aims to make it easier for users to create their own 3D objects and environments, a task that has traditionally been difficult on other 3D/VR platforms. By leveraging voice recognition and AI-powered 3D model generation, users can generate and interact with 3D objects in a VR environment.
 
