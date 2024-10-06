@@ -1,5 +1,5 @@
 # Use an official lightweight Python image with CUDA support
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
 
 # Set the working directory
 WORKDIR /app
