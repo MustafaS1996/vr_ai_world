@@ -28,7 +28,7 @@ To set up the project, follow these steps:
 
 3. **Install the Required Libraries**:
     ```sh
-    pip install diffusers transformers accelerate trimesh
+    pip install -r requirements.txt
     ```
 
 4. **Run the Flask Backend**:
@@ -38,6 +38,11 @@ To set up the project, follow these steps:
 
 5. **Open the `index.html` File in a Browser**:
     Open `localhost:5000` in a web browser to start interacting with the VR environment.
+
+6. **Within the Repo make a models folder to store the 3D objects**:
+    ```sh
+    mkdir models
+    ```
 
 ## Usage
 
