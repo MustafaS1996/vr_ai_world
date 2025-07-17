@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: vr-ai-world
+data:
+  # Inference service configuration
+  INFERENCE_SERVICE_HOST: "inference-service"
+  INFERENCE_SERVICE_PORT: "8000"
+  
+  # Model generation settings
+  DEFAULT_GUIDANCE_SCALE: "15.0"
+  DEFAULT_INFERENCE_STEPS: "64"
+  DEFAULT_FRAME_SIZE: "256"
+  
+  # Timeouts and limits
+  MODEL_GENERATION_TIMEOUT: "120"
+  MAX_DESCRIPTION_LENGTH: "200"

@@ -396,7 +396,7 @@
             console.warn("Attempted to load model with empty description.");
             return;
         }
-        const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`;
+        const url = `/api/model?description=${encodeURIComponent(description)}`;
         console.log("Fetching model from:", url);
         fetch(url)
           .then(response => {

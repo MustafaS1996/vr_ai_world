@@ -1,0 +1,39 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: vr-ai-world-gpu
+nodes:
+- role: control-plane
+  image: kindest/node:v1.31.0
+  extraPortMappings:
+  - containerPort: 30000
+    hostPort: 3000
+    protocol: TCP
+  - containerPort: 30001  
+    hostPort: 8000
+    protocol: TCP
+- role: worker
+  image: kindest/node:v1.31.0
+  extraMounts:
+  - hostPath: /dev/nvidia0
+    containerPath: /dev/nvidia0
+  - hostPath: /dev/nvidia1
+    containerPath: /dev/nvidia1
+  - hostPath: /dev/nvidiactl
+    containerPath: /dev/nvidiactl
+  - hostPath: /dev/nvidia-modeset
+    containerPath: /dev/nvidia-modeset
+  - hostPath: /dev/nvidia-uvm
+    containerPath: /dev/nvidia-uvm
+  - hostPath: /dev/nvidia-uvm-tools
+    containerPath: /dev/nvidia-uvm-tools
+  - hostPath: /usr/bin/nvidia-smi
+    containerPath: /usr/bin/nvidia-smi
+  - hostPath: /usr/lib/x86_64-linux-gnu
+    containerPath: /usr/lib/x86_64-linux-gnu
+    readOnly: true
+  kubeadmConfigPatches:
+  - |
+    kind: JoinConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        feature-gates: "DevicePlugins=true"
