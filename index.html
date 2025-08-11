@@ -2,500 +2,313 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A-Frame 3D Object Generation and Interaction (FPS Style)</title>
-
-  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-
-  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.3/dist/aframe-physics-system.min.js"></script>
-
-  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@v7.6.0/dist/aframe-extras.min.js"></script>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+  <script src="https://unpkg.com/super-hands@^3.0.4/dist/super-hands.min.js"></script>
 
   <script type="module">
-    import { pipeline, read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@3.5.2';
-    window.pipeline = pipeline;
+    import { read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
     window.read_audio = read_audio;
-  </script>
-
-  <style>
-    body { margin: 0; overflow: hidden; }
-    #textInput {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 100;
-      display: none;
-      padding: 10px;
-      font-size: 16px;
-      width: 300px;
-      border: 2px solid #333;
-      background-color: white;
-      color: black;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      border-radius: 5px;
-    }
-    /* Simple crosshair for aiming in FPS mode */
-    #crosshair {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 10px;
-      height: 10px;
-      background-color: white;
-      border-radius: 50%;
-      z-index: 99; /* Below text input, above A-Frame canvas */
-      pointer-events: none; /* Crucial: allows clicks to pass through to the canvas */
-    }
-  </style>
-
-  <script>
-    // Custom Mouse Grabber Component for Pointer Lock Mode
-    AFRAME.registerComponent('mouse-grabber', {
-      init: function () {
-        this.grabbedEl = null;
-        this.grabStartPoint = new THREE.Vector3(); // Point on the object where grab started
-        this.camera = this.el.sceneEl.querySelector('#head').components['camera'].camera;
-        this.lookControls = this.el.sceneEl.querySelector('#head').components['look-controls'];
-        this.canvas = this.el.sceneEl.canvas; // Reference to the A-Frame canvas
-
-        this.onMouseDown = this.onMouseDown.bind(this);
-        this.onMouseMove = this.onMouseMove.bind(this);
-        this.onMouseUp = this.onMouseUp.bind(this);
-        this.onPointerLockChange = this.onPointerLockChange.bind(this);
-        this.onPointerLockError = this.onPointerLockError.bind(this);
-
-        // Listen on the A-Frame canvas directly for mouse events
-        // Use the capture phase for mousedown to gain priority over look-controls
-        this.canvas.addEventListener('mousedown', this.onMouseDown, true); // Capture phase
-        this.canvas.addEventListener('mousemove', this.onMouseMove);
-        this.canvas.addEventListener('mouseup', this.onMouseUp);
-        this.canvas.addEventListener('mouseleave', this.onMouseUp); 
-
-        // Pointer Lock API event listeners
-        document.addEventListener('pointerlockchange', this.onPointerLockChange, false);
-        document.addEventListener('pointerlockerror', this.onPointerLockError, false);
-
-        // Add a click listener to the canvas itself for initial pointer lock activation.
-        // Browsers require a user gesture to enter pointer lock.
-        this.el.sceneEl.addEventListener('loaded', () => {
-          const crosshair = document.createElement('div');
-          crosshair.id = 'crosshair';
-          document.body.appendChild(crosshair);
-          crosshair.style.display = 'none'; // Initially hidden until pointer lock is active
-
-          this.canvas.addEventListener('click', () => {
-            if (document.pointerLockElement !== this.canvas) {
-              this.canvas.requestPointerLock();
-            }
-          }, { once: true }); // Only activate pointer lock on the very first click
-          
-          console.log("Click the scene to activate mouse lock and look around.");
-        });
-      },
-
-      onMouseDown: function (evt) {
-        // Only proceed if left mouse button is pressed
-        if (evt.button !== 0) { return; } 
-
-        const cursorEl = document.querySelector('[cursor]');
-        // In pointer lock mode, raycaster intersections are based on the center of the screen,
-        // so we can rely on `intersections[0]` if any.
-        if (!cursorEl || !cursorEl.components.raycaster || cursorEl.components.raycaster.intersections.length === 0) {
-          // If no intersection, or raycaster not ready, it's just a general click.
-          // In pointer lock mode, a click on empty space does nothing visible.
-          // We do NOT disable look-controls or exit pointer lock here.
-          return;
-        }
-
-        const intersection = cursorEl.components.raycaster.intersections[0];
-        const intersectedEl = intersection.object.el;
-
-        if (intersectedEl && intersectedEl.classList.contains('grabbable')) {
-          this.grabbedEl = intersectedEl;
-          this.grabStartPoint.copy(intersection.point); // Store point in world coords
-          
-          // Before grabbing, exit pointer lock. This reveals the cursor for dragging.
-          if (document.pointerLockElement === this.canvas) {
-              document.exitPointerLock();
-          }
-
-          // Disable look-controls immediately to prevent camera movement during drag
-          if (this.lookControls) {
-            this.lookControls.setAttribute('enabled', false);
-            console.log('Look-controls disabled for grabbing.');
-          }
-
-          // If object has physics, set to kinematic for manual dragging
-          if (this.grabbedEl.components['dynamic-body']) {
-            this.grabbedEl.setAttribute('dynamic-body', 'type: kinematic');
-            if (this.grabbedEl.body) {
-                this.grabbedEl.body.velocity.set(0, 0, 0);
-                this.grabbedEl.body.angularVelocity.set(0, 0, 0);
-            }
-          }
-
-          // Stop propagation to prevent any other mousedown listeners from interfering
-          evt.stopPropagation(); 
-        } else {
-          // If a non-grabbable object or empty space was clicked, and pointer lock is not active,
-          // try to re-engage pointer lock (unless HTML input is visible/active).
-          if (document.pointerLockElement !== this.canvas && !this.textInputElVisible()) {
-            this.canvas.requestPointerLock();
-          }
-        }
-      },
-
-      onMouseMove: function (evt) {
-        // Only move the object if it's grabbed AND pointer lock is OFF (meaning cursor is visible for dragging)
-        if (!this.grabbedEl || document.pointerLockElement === this.canvas) { return; }
-
-        // Get the mouse position in normalized device coordinates (-1 to +1)
-        const mouseX = (evt.clientX / window.innerWidth) * 2 - 1;
-        const mouseY = -(evt.clientY / window.innerHeight) * 2 + 1;
-
-        // Project a ray from the camera through the current mouse position
-        const vector = new THREE.Vector3(mouseX, mouseY, 0.5).unproject(this.camera);
-        const dir = vector.sub(this.camera.position).normalize();
-        const raycaster = new THREE.Raycaster(this.camera.position, dir);
-
-        // Find a new point along the ray that maintains the original grab distance from the camera
-        const newGrabPointWorld = this.camera.position.clone().add(dir.multiplyScalar(this.camera.position.distanceTo(this.grabStartPoint)));
-
-        // Convert the new world point back to the parent's local space
-        const parentInverseMatrix = new THREE.Matrix4().copy(this.grabbedEl.parent.matrixWorld).invert();
-        const newGrabPointLocal = newGrabPointWorld.applyMatrix4(parentInverseMatrix);
-
-        // Set the grabbed object's position directly
-        this.grabbedEl.object3D.position.copy(newGrabPointLocal);
-      },
-
-      onMouseUp: function () {
-        if (!this.grabbedEl) { return; } // Nothing to release
-
-        // Re-enable look-controls as the object is released
-        if (this.lookControls) {
-          this.lookControls.setAttribute('enabled', true);
-          console.log('Look-controls re-enabled on mouse up.');
-        }
-
-        // If object had physics, set back to dynamic so gravity affects it
-        if (this.grabbedEl.components['dynamic-body']) {
-          this.grabbedEl.setAttribute('dynamic-body', 'type: dynamic');
-        }
-
-        this.grabbedEl = null; // Release the object
-
-        // Request pointer lock again after releasing the object, if HTML input is not visible
-        if (!this.textInputElVisible()) {
-          this.canvas.requestPointerLock();
-        }
-      },
-
-      // Handler for pointer lock status changes
-      onPointerLockChange: function() {
-          if (document.pointerLockElement === this.canvas) {
-              console.log('Pointer lock acquired.');
-              // Ensure look-controls is enabled when pointer lock is active
-              if (this.lookControls) this.lookControls.setAttribute('enabled', true);
-              // Show our custom crosshair
-              document.getElementById('crosshair').style.display = 'block';
-
-          } else {
-              console.log('Pointer lock released.');
-              // Ensure look-controls is disabled when pointer lock is released (e.g., for UI interaction)
-              if (this.lookControls) this.lookControls.setAttribute('enabled', false);
-              // Hide our custom crosshair, allow OS cursor to show for UI
-              document.getElementById('crosshair').style.display = 'none';
-          }
-      },
-
-      onPointerLockError: function() {
-          console.error('Pointer lock error: Could not acquire or release pointer lock.');
-          alert('Pointer lock access denied or failed. You may need to click the scene to enable camera look.');
-      },
-
-      textInputElVisible: function() {
-        return document.getElementById('textInput').style.display !== 'none';
-      },
-
-      remove: function () {
-        this.canvas.removeEventListener('mousedown', this.onMouseDown, true);
-        this.canvas.removeEventListener('mousemove', this.onMouseMove);
-        this.canvas.removeEventListener('mouseup', this.onMouseUp);
-        this.canvas.removeEventListener('mouseleave', this.onMouseUp);
-        document.removeEventListener('pointerlockchange', this.onPointerLockChange, false);
-        document.removeEventListener('pointerlockerror', this.onPointerLockError, false);
-        const crosshair = document.getElementById('crosshair');
-        if (crosshair) document.body.removeChild(crosshair);
-      }
-    });
-
-    // A-Frame Component to handle speech input and model generation
-    AFRAME.registerComponent('speech-model-generator', {
-      init: function () {
-        this.isRecording = false;
-        this.mediaRecorder = null;
-        this.audioChunks = [];
-        this.worker = null; 
-
-        this.startButtonEl = document.getElementById('startButton');
-        this.textAreaEl = document.getElementById('textArea');
-        this.textInputEl = document.getElementById('textInput');
-        this.sceneEl = document.querySelector('a-scene');
-        this.canvas = this.sceneEl.canvas; // Reference to the A-Frame canvas
-
-        this.onStartButtonClick = this.onStartButtonClick.bind(this);
-        this.onWorkerMessage = this.onWorkerMessage.bind(this);
-        this.onWorkerError = this.onWorkerError.bind(this);
-        this.onTextInputChange = this.onTextInputChange.bind(this);
-        this.onTextInputKeyPress = this.onTextInputKeyPress.bind(this);
-
-        this.startButtonEl.addEventListener('click', this.onStartButtonClick);
-        this.textInputEl.addEventListener('input', this.onTextInputChange);
-        this.textInputEl.addEventListener('keypress', this.onTextInputKeyPress);
-        
-        // Listener to try to re-engage pointer lock when HTML input loses focus.
-        // This ensures FPS mode resumes after typing.
-        this.textInputEl.addEventListener('blur', () => {
-          const mouseGrabber = this.sceneEl.components['mouse-grabber'];
-          // Only re-engage if no object is currently grabbed and pointer lock is not already active
-          if (mouseGrabber && !mouseGrabber.grabbedEl && document.pointerLockElement !== this.canvas) {
-            this.canvas.requestPointerLock();
-          }
-        });
-
-        this.setupWorker();
-      },
-
-      setupWorker: function() {
-        const workerScript = `
-          import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@3.5.2';
-          self.pipeline = pipeline;
-
-          self.onmessage = async function(event) {
-            const audioFloat = event.data.floater;
-            try {
-              if (!self.transcriber) {
-                self.transcriber = await self.pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
-              }
-              const output = await self.transcriber(audioFloat);
-              self.postMessage({ text: output.text });
-            } catch (error) {
-              console.error("Worker error during transcription:", error);
-              self.postMessage({ error: error.message });
-            }
-          };
-        `;
-        const blob = new Blob([workerScript], { type: "text/javascript" });
-        this.worker = new Worker(URL.createObjectURL(blob), { type: "module" });
-        this.worker.onmessage = this.onWorkerMessage;
-        this.worker.onerror = this.onWorkerError;
-      },
-
-      onStartButtonClick: async function () {
-        this.textAreaEl.setAttribute('visible', true);
-
-        // Before showing HTML input, exit pointer lock if active
-        if (document.pointerLockElement === this.canvas) {
-            document.exitPointerLock();
-        }
-
-        if (!this.isRecording) {
-          try {
-            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.mediaRecorder = new MediaRecorder(audioStream);
-            this.audioChunks = [];
-
-            this.mediaRecorder.ondataavailable = event => {
-              this.audioChunks.push(event.data);
-            };
-
-            this.mediaRecorder.start();
-            console.log('Recording started');
-            this.isRecording = true;
-
-            this.startButtonEl.setAttribute('color', 'red');
-            this.startButtonEl.setAttribute('text', 'value', 'Stop Speech Input');
-
-            this.textInputEl.style.display = 'block';
-            this.textInputEl.focus(); // Focusing input will usually release pointer lock automatically
-            this.textInputEl.value = '';
-            this.textAreaEl.setAttribute('text', 'value', 'What Would You Like to See in 3D?: ');
-
-          } catch (error) {
-            console.error('Error accessing microphone:', error);
-            alert('Error accessing microphone. Please ensure permissions are granted. ' + error.message);
-          }
-        } else {
-          this.mediaRecorder.stop();
-          this.mediaRecorder.onstop = () => {
-            console.log('Recording stopped, processing...');
-            const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
-            const url = URL.createObjectURL(audioBlob);
-
-            if (typeof window.read_audio === 'function') {
-                window.read_audio(url, 16000)
-                    .then(floater => {
-                        this.worker.postMessage({ floater });
-                        URL.revokeObjectURL(url);
-                    })
-                    .catch(error => {
-                        console.error('Error reading audio for transcription:', error);
-                        alert('Error processing audio. ' + error.message);
-                    });
-            } else {
-                console.error("Xenova's read_audio function is not available.");
-                alert("Speech recognition not ready. Please check console for errors.");
-            }
-          };
-
-          this.isRecording = false;
-          this.startButtonEl.setAttribute('color', 'green');
-          this.startButtonEl.setAttribute('text', 'value', 'Start Speech Input');
-          
-          // After stopping recording, if text input is not focused, attempt pointer lock
-          if (document.activeElement !== this.textInputEl) {
-              this.canvas.requestPointerLock();
-          }
-        }
-      },
-
-      onWorkerMessage: function(event) {
-        if (event.data.error) {
-          console.error('Worker reported error:', event.data.error);
-          alert('Speech recognition failed: ' + event.data.error);
-          return;
-        }
-        const recognizedSpeech = event.data.text;
-        console.log('Recognized speech:', recognizedSpeech);
-        
-        this.textInputEl.value += recognizedSpeech; 
-        this.textAreaEl.setAttribute('text', 'value', 'What Would You Like to See in 3D?: ' + this.textInputEl.value);
-        
-        this.loadModel(this.textInputEl.value);
-      },
-
-      onWorkerError: function(error) {
-        console.error('Web Worker encountered an error:', error);
-        alert('An internal error occurred with speech processing.');
-      },
-
-      onTextInputChange: function() {
-        this.textAreaEl.setAttribute('text', 'value', 'What Would You Like to See in 3D?: ' + this.textInputEl.value);
-      },
-
-      onTextInputKeyPress: function(e) {
-        if (e.key === 'Enter') {
-          this.loadModel(this.textInputEl.value);
-          this.textInputEl.blur(); // Remove focus, which will trigger pointer lock re-request if applicable
-        }
-      },
-
-      loadModel: function(description) {
-        if (!description.trim()) {
-            console.warn("Attempted to load model with empty description.");
-            return;
-        }
-        const url = `http://localhost:5000/model?description=${encodeURIComponent(description)}`;
-        console.log("Fetching model from:", url);
-        fetch(url)
-          .then(response => {
-            if (!response.ok) {
-              return response.json().then(data => {
-                  throw new Error(data.error || 'Server returned an error');
-              }).catch(() => {
-                  throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
-              });
-            }
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
-                return response.json().then(data => {
-                    throw new Error(data.error || 'Server unexpectedly returned JSON');
-                });
-            }
-            return response.blob();
-          })
-          .then(blob => {
-            const blobUrl = URL.createObjectURL(blob);
-            this.addModelToScene(blobUrl);
-          })
-          .catch(error => {
-            console.error('There was a problem with the fetch operation:', error);
-            alert('Failed to load 3D model: ' + error.message);
-          });
-      },
-
-      addModelToScene: function(blobUrl) {
-        const newSphereEntity = document.createElement('a-sphere');
-        newSphereEntity.setAttribute('position', this.getRandomPosition());
-        newSphereEntity.setAttribute('opacity', '0.0'); 
-        newSphereEntity.setAttribute('radius', '0.5'); 
-
-        newSphereEntity.setAttribute('class', 'grabbable'); 
-        newSphereEntity.setAttribute('dynamic-body', 'mass: 1; type: dynamic;');
-
-        const modelEntity = document.createElement('a-entity');
-        modelEntity.setAttribute('obj-model', `obj: ${blobUrl}`);
-        modelEntity.setAttribute('position', '0 0 0');
-        modelEntity.setAttribute('scale', '0.8 0.8 0.8'); 
-
-        newSphereEntity.appendChild(modelEntity);
-        this.sceneEl.appendChild(newSphereEntity);
-        
-        setTimeout(() => {
-            const body = newSphereEntity.body;
-            if (body) {
-                body.applyImpulse(
-                    new CANNON.Vec3(Math.random() * 0.1 - 0.05, 0.5, Math.random() * 0.1 - 0.05),
-                    body.position
-                );
-            }
-        }, 100);
-      },
-
-      getRandomPosition: function() {
-        return `${Math.random() * 4 - 2} 3 ${Math.random() * 4 - 2}`;
-      }
-    });
+    //window.pipeline = pipeline
   </script>
 </head>
 <body>
-  <input type="text" id="textInput">
-
-  <div id="crosshair"></div> <a-scene physics="gravity: -9.8; debug: false" speech-model-generator mouse-grabber>
+  <a-scene>
+    <!-- Textarea for Speech Output -->
     <a-entity
       id="textArea"
       geometry="primitive: plane; width: 2; height: 1"
       material="color: #AAA"
       position="0 1.6 -3"
-      text="value: What Would You Like to See in 3D?;"
+      text="value: What Would You Like to See in 3D?: "
       visible="false">
     </a-entity>
 
+    <!-- Button for Starting/Stopping Speech Input -->
     <a-plane
       id="startButton"
-      class="clickable"
       color="cyan"
       width="1"
       height="0.5"
       position="1.6 1.5 -3"
-      text="value: Start Speech Input">
+      text="value: Start Speech Input"
+      cursor-listener obb-collider>
     </a-plane>
 
-    <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable, .grabbable"></a-entity>
-    
-    <a-plane static-body rotation="-90 0 0" color="#27ae60" scale="25 25 25" ></a-plane>
-    
-    <a-sky color="#3498db"></a-sky>
-
+    <a-entity cursor="rayOrigin: mouse"></a-entity>
+    <a-plane static-body rotation="-90 0 0" color="purple" scale="25 25 25" ></a-plane>
+    <a-sky color="blue"></a-sky>
     <a-entity id="player">
-      <a-camera id="head" wasd-controls look-controls="pointerLockEnabled: true"></a-camera>
+      <a-camera id="head" wasd-controls look-controls-enabled keyboard-controls="mode: fps"></a-camera>
+      <a-entity sphere-collider="objects: a-box" super-hands hand-controls="hand: left"></a-entity>
+      <a-entity sphere-collider="objects: a-box" super-hands hand-controls="hand: right"></a-entity>
     </a-entity>
 
-    <a-box class="grabbable" dynamic-body color="blue" position="0 0.5 -1"></a-box>
+    <a-box hoverable grabbable stretchable draggable droppable color="blue" position="0 0 -1"></a-box>
 
     <a-light type="ambient" color="#888"></a-light>
     <a-light type="directional" color="#fff" intensity="0.5" position="0 1 1"></a-light>
   </a-scene>
+
+  <script id="worker1" type="javascript/worker">
+    import { pipeline, read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+  
+    self.pipeline = pipeline;
+
+    self.onmessage = async function(event) {
+      const audioFloat = event.data.floater;
+    
+      console.log(audioFloat)
+    
+      // Use the new transcriber API
+      const transcriber = await self.pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+      const output = await transcriber(audioFloat);
+    
+      // Post the transcription result back to the main thread
+      self.postMessage({ text: output.text });
+    };
+    
+
+  </script>
+  
+  <script>
+
+    var blob = new Blob([
+        document.querySelector('#worker1').textContent
+      ], { type: "text/javascript" })
+
+    // Note: window.webkitURL.createObjectURL() in Chrome 10+.
+    var worker = new Worker(window.URL.createObjectURL(blob), { type: "module" });
+
+    let isRecording = false; // Variable to track if speech recognition is active
+    let recognizedText = ''; // Variable to store recognized speech
+    let mediaRecorder = null; // MediaRecorder object
+    let audioChunks = []; // Array to store audio chunks
+    document.getElementById('startButton').classList.add('clickable');
+
+    document.getElementById('startButton').addEventListener('click', async function () {
+      const textArea = document.getElementById('textArea');
+      textArea.setAttribute('visible', true); // Always show text area when button is clicked
+
+      if (!isRecording) { // Start recording
+        // Request permission to use the microphone
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+          // Initialize MediaRecorder
+          mediaRecorder = new MediaRecorder(audioStream);
+          
+          // Clear any previous audio chunks
+          audioChunks = [];
+          
+          // Handle data available event to store audio chunks
+          mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+          };
+
+          // Start recording
+          mediaRecorder.start();
+          console.log('Recording started');
+
+          // Update button state
+          isRecording = true;
+          const button = document.getElementById('startButton');
+          button.setAttribute('color', 'red');
+          button.setAttribute('text', 'value', 'Stop Speech Input');
+        } catch (error) {
+          console.error('Error accessing microphone:', error);
+        }
+      } else { // Stop recording
+        mediaRecorder.stop();
+
+        // Handle stop event to process the audio
+        // Handle stop event to process the audio
+        mediaRecorder.onstop = () => {
+                  console.log('Recording stopped, processing...');
+
+                  // Create a Blob from the audio chunks
+                  const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+
+                  // Create a URL for the Blob
+                  const url = URL.createObjectURL(audioBlob);
+
+                  //floater = read_audio(url) 
+
+                  // Read the audio
+                  read_audio(url, 16000)
+                    .then(floater => {
+                      // Post the floater data to the web worker
+                      worker.postMessage({ floater });
+
+                      // Listen for messages from the worker
+                      worker.onmessage = function(event) {
+                        const output = event.data;
+
+                        recognizedText = output.text; // Save recognized speech to variable
+                        console.log('Recognized speech:', recognizedText);
+
+                        // Update text entity with recognized speech
+                        textArea.setAttribute('text', 'value', 'What Would You Like to See in 3D?: ' + recognizedText);
+
+                        loadModel(recognizedText);
+                        addBoxToScene();
+
+
+                        // Revoke the Blob URL after processing
+                        URL.revokeObjectURL(url);
+                      };
+
+                      worker.onerror = function(error) {
+                        console.error('There was a problem with the worker:', error);
+                      };
+                    })
+                    .catch(error => {
+                      console.error('There was a problem with reading the audio:', error);
+                    });
+
+                  // Update button state
+                  isRecording = false;
+                  const button = document.getElementById('startButton');
+                  button.setAttribute('color', 'green');
+                  button.setAttribute('text', 'value', 'Start Speech Input');
+
+                };
+              }
+    });
+
+
+    // Function to fetch the model description from the server and log it to the console
+    function loadModel(description) {
+      const url = `/api/model?description=${encodeURIComponent(description)}`; // URL of the model with query parameter
+
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+          }
+          return response.blob(); // Get the response as Blob
+        })
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob); // Create a Blob URL
+          const newEntity = addModelToScene(blobUrl); // Add the model to the scene
+          addBoxToScene(newEntity)
+        })
+        .catch(error => {
+          console.error('There was a problem with the fetch operation:', error);
+        });
+    }
+
+    // Function to add the model to the scene
+    function addModelToScene(blobUrl) {
+      const sceneEl = document.querySelector('a-scene'); // Get the scene element
+      const newEntity = document.createElement('a-entity'); // Create a new entity
+      newEntity.setAttribute('obj-model', `obj: ${blobUrl}`); // Set the obj-model attribute with the Blob URL
+      newEntity.setAttribute('position', {x: 0, y: 0, z: 0} );// getRandomPosition()); // Set a random position
+  
+      // sceneEl.appendChild(newEntity); // Add the new entity to the scene
+      // sceneEl.flushToDOM(); // Refresh the scene
+
+
+      
+      return newEntity;
+    }
+
+    function addBoxToScene(modelEntity) {
+      const sceneEl = document.querySelector('a-scene'); // Get the scene element
+      const newBoxEntity = document.createElement('a-sphere'); // Create a new entity
+      newBoxEntity.setAttribute('position', getRandomPosition()); // Set a random position
+      newBoxEntity.setAttribute('class', 'clickable'); // Add clickable class
+      newBoxEntity.setAttribute('cursor-listener', ''); // Add cursor-listener attribute
+      newBoxEntity.setAttribute('opacity', '0.0');
+      newBoxEntity.appendChild(modelEntity)
+      sceneEl.appendChild(newBoxEntity); // Add the new entity to the scene
+      sceneEl.flushToDOM(); // Refresh the scene
+
+
+      newBoxEntity.addEventListener('loaded', () => {
+      console.log('Entity loaded and ready for manipulation');
+      // Safely update properties here
+      newBoxEntity.setAttribute('dynamic-body', ''); // Add cursor-listener attribute
+      newBoxEntity.components['dynamic-body'].initComponent();
+
+      });
+    }
+
+    // Function to generate a random position
+    function getRandomPosition() {
+      return `${Math.random() * 4 - 2} 3 ${Math.random() * 4 - 2}`;
+    }
+
+    // Debug code
+    document.addEventListener('DOMContentLoaded', function () {
+      const sceneEl = document.querySelector('a-scene');
+      const clickableEls = document.querySelectorAll('.clickable'); // Select all clickable objects
+      let currentDraggedEl = null; // Track the currently dragged element
+      let textBox = document.createElement('a-box');
+
+      function createBox(event, textinBox) {
+        const clickedEl = event.target;
+        const sceneEl = document.querySelector('a-scene');
+        sceneEl.remove(textBox);
+
+        // Create new box
+        const newBox = document.createElement('a-sphere');
+        newBox.setAttribute('position', {x: 0, y: 1, z: -5});
+        newBox.setAttribute('color', '#FFC65D');
+        newBox.setAttribute('scale', {x: 2, y: 2, z: 2});
+
+        // Create text
+        const text = document.createElement('a-text');
+        text.setAttribute('value', ` ${textinBox}`);
+        text.setAttribute('color', '#000');
+        text.setAttribute('position', {x: -1, y: 0, z: 0.5});
+        text.setAttribute('scale', {x: 4, y: 4, z: 4});
+
+        newBox.appendChild(text); // Attach text to the new box
+
+        textBox = newBox;
+        sceneEl.appendChild(textBox); // Attach the new box to the scene
+      }
+
+      // Function to start dragging
+      function startDrag(evt) {
+        currentDraggedEl = evt.currentTarget; // Set the current element being dragged
+        currentDraggedEl.classList.add('dragging'); // Optional: Add a class for styling if necessary
+        // createBox(event, `started`);
+      }
+
+      // Function to do the dragging
+      function doDrag(evt) {
+        if (currentDraggedEl && currentDraggedEl.classList.contains('dragging')) {
+          const cursorEl = document.querySelector('a-cursor');
+          const intersection = cursorEl.components.raycaster.getIntersection(currentDraggedEl);
+          // createBox(event, `dragging inside ` + currentDraggedEl.getAttribute('id'));
+          if (intersection) {
+            const point = intersection.point;
+            currentDraggedEl.setAttribute('position', { x: point.x, y: point.y, z: currentDraggedEl.getAttribute('position').z });
+          }
+        }
+      }
+
+      // Function to end dragging
+      function endDrag(evt) {
+        if (currentDraggedEl) {
+          currentDraggedEl.classList.remove('dragging'); // Optional: Remove the class if added
+          currentDraggedEl = null; // Clear the currently dragged element
+        }
+      }
+
+      // Attach event listeners to each clickable element
+      clickableEls.forEach(el => {
+        el.addEventListener('mousedown', startDrag);
+      });
+
+      // Attach moving and up listeners to the scene
+      sceneEl.addEventListener('mousemove', doDrag);
+      sceneEl.addEventListener('mouseup', endDrag);
+    });
+  </script>
+
 </body>
 </html>
