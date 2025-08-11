@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: vr-ai-world/frontend:latest
-        imagePullPolicy: Never  # For local development
+        image: gcr.io/vraiworld/frontend:latest
+        imagePullPolicy: Always  # For cloud deployment
         ports:
         - containerPort: 3000
         env:

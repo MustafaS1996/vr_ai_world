@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: inference
-        image: vr-ai-world/inference:latest
-        imagePullPolicy: Never  # For local development
+        image: gcr.io/vraiworld/inference:latest
+        imagePullPolicy: Always  # For cloud deployment
         ports:
         - containerPort: 8000
         resources:

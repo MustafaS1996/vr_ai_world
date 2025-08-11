@@ -1,0 +1,55 @@
+# Cloud Build configuration for VR AI World
+steps:
+  # Build Frontend Service
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', 'gcr.io/vraiworld/frontend:latest',
+      './services/frontend'
+    ]
+    id: 'build-frontend'
+
+  # Build Inference Service  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', 'gcr.io/vraiworld/inference:latest',
+      './services/inference'
+    ]
+    id: 'build-inference'
+
+  # Push Frontend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/vraiworld/frontend:latest']
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+  # Push Inference Image  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/vraiworld/inference:latest']
+    id: 'push-inference'
+    waitFor: ['build-inference']
+
+  # Deploy to GKE
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    args: [
+      'run',
+      '--filename=k8s/',
+      '--cluster=vr-ai-world',
+      '--location=us-central1-a',
+      '--namespace=vr-ai-world'
+    ]
+    waitFor: ['push-frontend', 'push-inference']
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/vraiworld/frontend:latest'
+  - 'gcr.io/vraiworld/inference:latest'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: '100'
+
+# Timeout
+timeout: '1800s'
