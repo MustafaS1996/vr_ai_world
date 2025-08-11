@@ -36,7 +36,7 @@
       cursor-listener obb-collider>
     </a-plane>
 
-    <a-entity cursor="rayOrigin: mouse"></a-entity>
+    <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable, .grabbable-model"></a-entity>
     <a-plane static-body rotation="-90 0 0" color="purple" scale="25 25 25" ></a-plane>
     <a-sky color="blue"></a-sky>
     <a-entity id="player">
@@ -45,7 +45,7 @@
       <a-entity sphere-collider="objects: a-box" super-hands hand-controls="hand: right"></a-entity>
     </a-entity>
 
-    <a-box hoverable grabbable stretchable draggable droppable color="blue" position="0 0 -1"></a-box>
+    <a-box hoverable grabbable stretchable draggable droppable color="blue" position="0 0 -1" class="clickable grabbable-model"></a-box>
 
     <a-light type="ambient" color="#888"></a-light>
     <a-light type="directional" color="#fff" intensity="0.5" position="0 1 1"></a-light>
@@ -218,20 +218,24 @@
       const sceneEl = document.querySelector('a-scene'); // Get the scene element
       const newBoxEntity = document.createElement('a-sphere'); // Create a new entity
       newBoxEntity.setAttribute('position', getRandomPosition()); // Set a random position
-      newBoxEntity.setAttribute('class', 'clickable'); // Add clickable class
+      newBoxEntity.setAttribute('class', 'clickable grabbable-model'); // Add clickable and grabbable classes
       newBoxEntity.setAttribute('cursor-listener', ''); // Add cursor-listener attribute
       newBoxEntity.setAttribute('opacity', '0.0');
+      newBoxEntity.setAttribute('radius', '0.5'); // Set sphere size
       newBoxEntity.appendChild(modelEntity)
       sceneEl.appendChild(newBoxEntity); // Add the new entity to the scene
       sceneEl.flushToDOM(); // Refresh the scene
 
-
       newBoxEntity.addEventListener('loaded', () => {
-      console.log('Entity loaded and ready for manipulation');
-      // Safely update properties here
-      newBoxEntity.setAttribute('dynamic-body', ''); // Add cursor-listener attribute
-      newBoxEntity.components['dynamic-body'].initComponent();
-
+        console.log('Entity loaded and ready for manipulation');
+        // Safely update properties here
+        newBoxEntity.setAttribute('dynamic-body', 'mass: 1; type: dynamic;'); // Add physics body
+        if (newBoxEntity.components['dynamic-body']) {
+          newBoxEntity.components['dynamic-body'].initComponent();
+        }
+        
+        // Add mouse interaction events
+        addMouseInteraction(newBoxEntity);
       });
     }
 
@@ -240,12 +244,103 @@
       return `${Math.random() * 4 - 2} 3 ${Math.random() * 4 - 2}`;
     }
 
+    // Function to add mouse interaction to grabbable models
+    function addMouseInteraction(entity) {
+      let isGrabbed = false;
+      let originalColor = null;
+      
+      // Mouse enter - highlight the object
+      entity.addEventListener('mouseenter', function() {
+        if (!isGrabbed) {
+          entity.setAttribute('opacity', '0.3'); // Make slightly visible on hover
+          entity.style.cursor = 'grab';
+        }
+      });
+      
+      // Mouse leave - remove highlight
+      entity.addEventListener('mouseleave', function() {
+        if (!isGrabbed) {
+          entity.setAttribute('opacity', '0.0'); // Make invisible again
+        }
+      });
+      
+      // Mouse down - start grabbing
+      entity.addEventListener('mousedown', function(evt) {
+        evt.stopPropagation();
+        isGrabbed = true;
+        entity.setAttribute('opacity', '0.5'); // More visible when grabbed
+        entity.style.cursor = 'grabbing';
+        
+        // Set to kinematic so it doesn't fall during dragging
+        if (entity.components['dynamic-body']) {
+          entity.setAttribute('dynamic-body', 'type: kinematic');
+        }
+        
+        console.log('Started grabbing model');
+      });
+      
+      // Global mouse up - stop grabbing
+      document.addEventListener('mouseup', function() {
+        if (isGrabbed) {
+          isGrabbed = false;
+          entity.setAttribute('opacity', '0.0'); // Make invisible again
+          entity.style.cursor = 'grab';
+          
+          // Set back to dynamic so physics takes over
+          if (entity.components['dynamic-body']) {
+            entity.setAttribute('dynamic-body', 'type: dynamic');
+          }
+          
+          console.log('Stopped grabbing model');
+        }
+      });
+      
+      // Mouse move - move the object if grabbed
+      document.addEventListener('mousemove', function(evt) {
+        if (isGrabbed) {
+          const camera = document.querySelector('#head');
+          const sceneEl = document.querySelector('a-scene');
+          
+          if (camera && sceneEl.canvas) {
+            // Get mouse position relative to canvas
+            const rect = sceneEl.canvas.getBoundingClientRect();
+            const mouseX = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+            const mouseY = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Create raycaster from camera through mouse position
+            const vector = new THREE.Vector3(mouseX, mouseY, 0.5);
+            vector.unproject(camera.getObject3D('camera'));
+            
+            const direction = vector.sub(camera.getObject3D('camera').position).normalize();
+            const raycaster = new THREE.Raycaster(camera.getObject3D('camera').position, direction);
+            
+            // Calculate position at fixed distance from camera
+            const distance = 3;
+            const newPosition = camera.getObject3D('camera').position.clone().add(direction.multiplyScalar(distance));
+            
+            entity.setAttribute('position', {
+              x: newPosition.x,
+              y: newPosition.y,
+              z: newPosition.z
+            });
+          }
+        }
+      });
+    }
+
     // Debug code
     document.addEventListener('DOMContentLoaded', function () {
       const sceneEl = document.querySelector('a-scene');
       const clickableEls = document.querySelectorAll('.clickable'); // Select all clickable objects
       let currentDraggedEl = null; // Track the currently dragged element
       let textBox = document.createElement('a-box');
+      
+      // Add mouse interaction to existing grabbable models
+      document.querySelectorAll('.grabbable-model').forEach(el => {
+        if (el !== document.querySelector('a-plane')) { // Don't add to the button
+          addMouseInteraction(el);
+        }
+      });
 
       function createBox(event, textinBox) {
         const clickedEl = event.target;
