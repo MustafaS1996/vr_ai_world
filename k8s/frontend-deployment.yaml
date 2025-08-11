@@ -62,4 +62,4 @@ spec:
   - port: 80
     targetPort: 3000
     protocol: TCP
-  type: LoadBalancer  # Expose to external traffic
+  type: ClusterIP  # Ingress will handle external traffic

@@ -1,0 +1,23 @@
+# Frontend-only Cloud Build configuration
+steps:
+  # Build Frontend Service only
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', 'gcr.io/vraiworld/frontend:latest',
+      './services/frontend'
+    ]
+    id: 'build-frontend'
+
+  # Push Frontend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/vraiworld/frontend:latest']
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/vraiworld/frontend:latest'
+
+# Timeout (much shorter since only building frontend)
+timeout: '600s'
